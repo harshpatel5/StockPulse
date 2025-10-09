@@ -1,18 +1,18 @@
-# 🚀 StockPulse
+# StockPulse
 
 A modern, cloud-native portfolio tracking platform for managing stocks, crypto, and other investments in real-time.
 
-## ✨ Features
+## Features
 
-- 🔐 **Secure Authentication** - JWT-based auth with bcrypt password hashing
-- 📊 **Portfolio Dashboard** - Real-time asset tracking with interactive charts
-- 💼 **Multi-Asset Support** - Track stocks, crypto, bonds, ETFs, and more
-- 📈 **Performance Analytics** - Visualize gains/losses and portfolio allocation
-- 🐳 **Containerized** - Fully Dockerized for easy deployment
-- ⚡ **RESTful API** - Clean, documented API endpoints
-- 🔄 **CI/CD Pipeline** - Automated testing and deployment with GitHub Actions
+-  **Secure Authentication** - JWT-based auth with bcrypt password hashing
+-  **Portfolio Dashboard** - Real-time asset tracking with interactive charts
+-  **Multi-Asset Support** - Track stocks, crypto, bonds, ETFs, and more
+-  **Performance Analytics** - Visualize gains/losses and portfolio allocation
+-  **Containerized** - Fully Dockerized for easy deployment
+-  **RESTful API** - Clean, documented API endpoints
+-  **CI/CD Pipeline** - Automated testing and deployment with GitHub Actions
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 **Backend:**
 - Flask (Python web framework)
@@ -32,7 +32,7 @@ A modern, cloud-native portfolio tracking platform for managing stocks, crypto, 
 - GitHub Actions (CI/CD)
 - Railway/AWS (deployment)
 
-## 🚀 Quick Start
+## Quick Start
 ```bash
 # Clone the repository
 git clone https://github.com/harshpatel5/StockPulse.git
