@@ -10,10 +10,10 @@ class Config:
         'postgresql://appuser:strongpassword@localhost:5432/portfoliodb'
     )
     
-    # Disable Flask-SQLAlchemy event system (saves memory)
+    # Turn off SQLAlchemy event system
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
-    # Secret key for JWT token signing (MUST be secret in production!)
+    # App secret for signing JWTs
     SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
     
     # JWT token expiration time (in hours)
