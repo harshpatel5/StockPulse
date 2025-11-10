@@ -10,9 +10,9 @@ A cloud-native portfolio tracking platform for managing stocks, crypto, and inve
 - ✓ Project architecture & structure
 - ✓ Database models (User, Asset)  
 - ✓ PostgreSQL schema design
-- ⋯ JWT authentication (in progress)
-- ⋯ RESTful API endpoints (in progress)
-- ⋯ Docker containerization (planned)
+- ✓ JWT authentication 
+- ✓ RESTful API endpoints 
+- ✓ Docker containerization
 - ⋯ React frontend (planned)
 
 ## Tech Stack
