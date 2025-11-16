@@ -1,11 +1,8 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
-#from app.models import db, User, Asset
-#from app.auth import generate_token, token_required
-from auth import generate_token, token_required
-from models import db, User, Asset
-from config import Config
-#from app.config import Config
+from app.auth import generate_token, token_required
+from app.models import db, User, Asset
+from app.config import Config
 from sqlalchemy import exc
 
 

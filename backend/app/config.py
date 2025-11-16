@@ -7,7 +7,7 @@ class Config:
     # Format: postgresql://username:password@host:port/database_name
     SQLALCHEMY_DATABASE_URI = os.environ.get(
         'DATABASE_URL', 
-        'postgresql://appuser:strongpassword@localhost:5432/portfoliodb'
+        'postgresql://appuser:strongpassword@stockpulse-db:5432/portfoliodb'
     )
     
     # Turn off SQLAlchemy event system
