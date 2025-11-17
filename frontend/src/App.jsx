@@ -32,7 +32,7 @@ const fetchStockPrice = async (symbol) => {
   }
 };
 
-const StockPulse = () => {
+const StockPulse = () => {  
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [currentView, setCurrentView] = useState('login');
   const [token, setToken] = useState(null);
@@ -50,6 +50,17 @@ const StockPulse = () => {
     quantity: '',
     cost_basis: ''
   });
+  useEffect(() => {
+  const savedToken = localStorage.getItem('token');
+  const savedUser = localStorage.getItem('user');
+  
+  if (savedToken && savedUser) {
+    setToken(savedToken);
+    setUser(JSON.parse(savedUser));
+    setIsLoggedIn(true);
+    setCurrentView('dashboard');
+  }
+}, []);
 
   // Chart colors
   const COLORS = {
@@ -61,32 +72,68 @@ const StockPulse = () => {
   };
 
   // Fetch assets from backend
-  const fetchAssets = async () => {
-    if (!token) return;
+  // const fetchAssets = async () => {
+  //   if (!token) return;
     
-    try {
-      const response = await fetch(`${API_BASE_URL}/assets`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+  //   try {
+  //     const response = await fetch(`${API_BASE_URL}/assets`, {
+  //       headers: {
+  //         'Authorization': `Bearer ${token}`
+  //       }
+  //     });
+      
+  //     if (response.ok) {
+  //       const data = await response.json();
+  //       setAssets(data);
+        
+  //       // Fetch live prices for stocks
+  //       data.forEach(async (asset) => {
+  //         if (asset.type === 'Stock') {
+  //           const price = await fetchStockPrice(asset.name);
+  //           setLivePrices(prev => ({ ...prev, [asset.name]: price }));
+  //         }
+  //       });
+  //     }
+  //   } catch (error) {
+  //     console.error('Error fetching assets:', error);
+  //   }
+  // };
+  const fetchAssets = async () => {
+  if (!token) return;
+  
+  try {
+    const response = await fetch(`${API_BASE_URL}/assets`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      setAssets(data);
+      
+      // Fetch live prices for stocks (wait for all to complete)
+      const pricePromises = data
+        .filter(asset => asset.type === 'Stock')
+        .map(async (asset) => {
+          const price = await fetchStockPrice(asset.name);
+          return { name: asset.name, price };
+        });
+      
+      // Wait for all prices to be fetched
+      const prices = await Promise.all(pricePromises);
+      
+      // Update state with all prices at once
+      const priceMap = {};
+      prices.forEach(({ name, price }) => {
+        if (price) priceMap[name] = price;
       });
       
-      if (response.ok) {
-        const data = await response.json();
-        setAssets(data);
-        
-        // Fetch live prices for stocks
-        data.forEach(async (asset) => {
-          if (asset.type === 'Stock') {
-            const price = await fetchStockPrice(asset.name);
-            setLivePrices(prev => ({ ...prev, [asset.name]: price }));
-          }
-        });
-      }
-    } catch (error) {
-      console.error('Error fetching assets:', error);
+      setLivePrices(priceMap);
+      console.log('✓ All prices fetched:', priceMap);
     }
-  };
+  } catch (error) {
+    console.error('Error fetching assets:', error);
+  }
+};
 
   // Login
   const handleLogin = async (e) => {
@@ -107,6 +154,10 @@ const StockPulse = () => {
         setUser(data.user);
         setIsLoggedIn(true);
         setCurrentView('dashboard');
+
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        
         setEmail('');
         setPassword('');
       } else {
@@ -201,6 +252,8 @@ const StockPulse = () => {
     setIsLoggedIn(false);
     setAssets([]);
     setCurrentView('login');
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
   };
 
   // Fetch assets on login
