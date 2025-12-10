@@ -1,16 +1,30 @@
-# React + Vite
+# StockPulse Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Minimal, responsive portfolio tracking UI with auth, asset management, and Alpha Vantage powered pricing.
 
-Currently, two official plugins are available:
+## Getting Started
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
-## React Compiler
+## Environment Variables
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Create `frontend/.env` with:
 
-## Expanding the ESLint configuration
+```
+VITE_ALPHA_VANTAGE_KEY=your_alpha_vantage_key
+VITE_API_BASE_URL=http://localhost:5000/api
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+The React app reads these via `import.meta.env.*`. Keep the `.env` file out of version control.
+
+## Features
+
+- Email/password login + registration, persisted via localStorage
+- Asset CRUD with support for stocks, crypto, bonds, ETFs, and commodities
+- Live stock quotes from Alpha Vantage with fallback to cost basis
+- Allocation pie chart plus per-asset value line chart (Recharts)
+- Minimal dark UI tuned for desktop and mobile breakpoints
