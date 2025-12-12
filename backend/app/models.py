@@ -75,3 +75,31 @@ class Asset(db.Model):
     
     def __repr__(self):
         return f'<Asset {self.name}>'
+
+
+class PortfolioHistory(db.Model):
+    """
+    Stores the total portfolio value for each user per day.
+    One entry per (user_id, date).
+    """
+    __tablename__ = "portfolio_history"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+
+    # Store date without time for clean charting
+    date = db.Column(db.Date, nullable=False, index=True)
+
+    total_value = db.Column(db.Float, nullable=False)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+   
+    user = relationship("User", backref="history", lazy=True)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "date": self.date.isoformat(),
+            "total_value": self.total_value,
+        }

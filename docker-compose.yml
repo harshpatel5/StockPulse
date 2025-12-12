@@ -30,6 +30,7 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-appuser}:${POSTGRES_PASSWORD:-strongpassword}@db:5432/${POSTGRES_DB:-portfoliodb}
       SECRET_KEY: ${SECRET_KEY:-dev-secret-key-change-in-production}
       DEBUG: ${DEBUG:-True}
+      FINNHUB_KEY: ${FINNHUB_KEY:-}
     volumes:
       - ./backend:/app
     ports:
@@ -38,6 +39,24 @@ services:
       db:
         condition: service_healthy
     command: python -m app.main
+
+  # Vite Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: stockpulse-frontend
+    restart: unless-stopped
+    environment:
+      VITE_API_BASE_URL: http://backend:5000/api
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+    command: npm run dev -- --host
 
 volumes:
   postgres_data:

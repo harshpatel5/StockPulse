@@ -1,0 +1,28 @@
+frontend/src/
+├── App.jsx                    # Main component (orchestrates everything)
+├── constants.js               # Constants (API URLs, colors, defaults)
+├── utils/
+│   └── formatters.js         # Helper functions (currency, toNumber)
+├── services/
+│   ├── api.js                # All backend API calls
+│   └── priceService.js       # Price fetching logic
+├── hooks/
+│   ├── useAuth.js            # Authentication logic
+│   ├── useAssets.js          # Asset management logic
+│   └── usePortfolio.js       # Portfolio calculations
+└── components/
+    ├── AuthForm.jsx          # Login/Register form
+    ├── Header.jsx            # Top navigation bar
+    ├── StatsCards.jsx        # Portfolio stats cards
+    ├── AllocationChart.jsx   # Pie chart component
+    ├── HistoryChart.jsx      # Line chart component
+    ├── AssetForm.jsx         # Add asset form
+    └── AssetList.jsx         # Asset list display
+
+
+
+Global default: 30 per day, 10 per hour
+Register: 3 per hour (prevents account spam)
+Login: 5 per hour (strong brute force protection)
+Assets: 30 per hour (normal daily usage: ~5-10 for typical users)
+History: 10 per hour (only called during refresh)

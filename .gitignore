@@ -51,3 +51,4 @@ logs/
 .coverage
 htmlcov/
 .tox/
+.tx/
