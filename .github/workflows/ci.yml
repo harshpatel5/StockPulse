@@ -1,0 +1,43 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test-backend:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        cd backend
+        pip install -r requirements.txt
+    
+    - name: Run basic checks
+      run: |
+        cd backend
+        python -c "from app.models import User, Asset; print('✓ Models import successfully')"
+        python -c "from app.auth import generate_token; print('✓ Auth imports successfully')"
+        echo "✓ Backend code is valid"
+
+  build-docker:
+    runs-on: ubuntu-latest
+    needs: test-backend
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Build Docker image
+      run: |
+        docker build -t stockpulse-backend ./backend
+        echo "✓ Docker image built successfully"
