@@ -4,7 +4,6 @@ import { ASSET_TYPES } from '../constants';
 import { searchSymbols } from '../services/priceService';
 
 export const AssetForm = ({ formAsset, setFormAsset, onSubmit, busy }) => {
-  const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -26,7 +25,7 @@ export const AssetForm = ({ formAsset, setFormAsset, onSubmit, busy }) => {
       const results = await searchSymbols(query);
       setSearchResults(results);
       setShowDropdown(results.length > 0);
-    } catch (error) {
+    } catch {
       setSearchResults([]);
       setShowDropdown(false);
     } finally {
@@ -38,7 +37,6 @@ export const AssetForm = ({ formAsset, setFormAsset, onSubmit, busy }) => {
   const handleInputChange = (event) => {
     const value = event.target.value;
     setFormAsset((prev) => ({ ...prev, name: value }));
-    setSearchQuery(value);
 
     // Clear previous timeout
     if (searchTimeoutRef.current) {
@@ -54,7 +52,6 @@ export const AssetForm = ({ formAsset, setFormAsset, onSubmit, busy }) => {
   // Handle suggestion selection
   const handleSelectSuggestion = (suggestion) => {
     setFormAsset((prev) => ({ ...prev, name: suggestion.symbol }));
-    setSearchQuery(suggestion.symbol);
     setSearchResults([]);
     setShowDropdown(false);
     // Focus back on input

@@ -1,19 +1,18 @@
-FROM node:18-alpine
+FROM node:22-alpine
 
-# Set working directory
 WORKDIR /app
 
-# Copy package files
+# Copy only package files first (this layer is cached)
 COPY package.json package-lock.json ./
 
-# Install dependencies
+# Install dependencies (cached unless package.json changes)
 RUN npm ci
 
-# Copy application code
-COPY . .
+# Copy source code (changes don't invalidate dependency cache)
+COPY src ./src
+COPY public ./public
+COPY index.html vite.config.js ./
 
-# Expose port 5173 (Vite default)
 EXPOSE 5173
 
-# Run Vite dev server
 CMD ["npm", "run", "dev", "--", "--host"]
