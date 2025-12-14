@@ -1,5 +1,5 @@
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
-export const FINNHUB_KEY =
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+export const ALPHA_VANTAGE_KEY =
   import.meta.env.DEV?.VITE_ALPHA_VANTAGE_KEY ?? import.meta.env.VITE_ALPHA_VANTAGE_KEY;
 
 export const DEFAULT_ASSET = { name: '', type: 'Stock', quantity: '', costBasis: '' };

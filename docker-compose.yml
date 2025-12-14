@@ -48,7 +48,8 @@ services:
     container_name: stockpulse-frontend
     restart: unless-stopped
     environment:
-      VITE_API_BASE_URL: http://backend:5000/api
+      VITE_API_BASE_URL: /api
+      VITE_BACKEND_URL: http://backend:5000
     volumes:
       - ./frontend:/app
       - /app/node_modules

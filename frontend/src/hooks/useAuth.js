@@ -1,21 +1,18 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { login, register } from '../services/api';
 
+// Initialize from localStorage synchronously to prevent flickering
+const getInitialToken = () => localStorage.getItem('token');
+const getInitialUser = () => {
+  const saved = localStorage.getItem('user');
+  return saved ? JSON.parse(saved) : null;
+};
+
 export const useAuth = () => {
-  const [token, setToken] = useState(null);
-  const [user, setUser] = useState(null);
+  const [token, setToken] = useState(getInitialToken);
+  const [user, setUser] = useState(getInitialUser);
   const [authMode, setAuthMode] = useState('login');
   const [credentials, setCredentials] = useState({ email: '', password: '' });
-
-  useEffect(() => {
-    const savedToken = localStorage.getItem('token');
-    const savedUser = localStorage.getItem('user');
-
-    if (savedToken && savedUser) {
-      setToken(savedToken);
-      setUser(JSON.parse(savedUser));
-    }
-  }, []);
 
   const handleLogin = async () => {
     const data = await login(credentials);

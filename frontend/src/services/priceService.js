@@ -1,19 +1,19 @@
-import { FINNHUB_KEY } from '../constants';
+import { ALPHA_VANTAGE_KEY } from '../constants';
 
 export const fetchPriceForSymbol = async (symbol) => {
-  if (!FINNHUB_KEY) {
-    console.warn('Finnhub key missing; skip live quote.');
+  if (!ALPHA_VANTAGE_KEY) {
+    console.warn('Alpha Vantage key missing; skip live quote.');
     return null;
   }
 
   try {
     const response = await fetch(
-      `https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${FINNHUB_KEY}`
+      `https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${ALPHA_VANTAGE_KEY}`
     );
     const data = await response.json();
 
     if (!data || data.error) {
-      console.warn('Finnhub response', symbol, data);
+      console.warn('Alpha Vantage response', symbol, data);
       return null;
     }
 
@@ -36,10 +36,10 @@ export const refreshPrices = async (assetList = []) => {
     return { prices: {}, warning: null };
   }
 
-  if (!FINNHUB_KEY) {
+  if (!ALPHA_VANTAGE_KEY) {
     return {
       prices: {},
-      warning: 'Add your Finnhub API key (VITE_ALPHA_VANTAGE_KEY) to enable live quotes.',
+      warning: 'Add your Alpha Vantage API key (VITE_ALPHA_VANTAGE_KEY) to enable live quotes.',
     };
   }
 
@@ -56,15 +56,15 @@ export const refreshPrices = async (assetList = []) => {
   }, {});
 
   const warning = !Object.keys(prices).length
-    ? 'Finnhub did not return live prices. Using cost basis.'
+    ? 'Alpha Vantage did not return live prices. Using cost basis.'
     : null;
 
   return { prices, warning };
 };
 
 export const searchSymbols = async (query) => {
-  if (!FINNHUB_KEY) {
-    console.warn('Finnhub key missing; cannot search symbols.');
+  if (!ALPHA_VANTAGE_KEY) {
+    console.warn('Alpha Vantage key missing; cannot search symbols.');
     return [];
   }
 
@@ -74,7 +74,7 @@ export const searchSymbols = async (query) => {
 
   try {
     const response = await fetch(
-      `https://finnhub.io/api/v1/search?q=${encodeURIComponent(query)}&token=${FINNHUB_KEY}`
+      `https://finnhub.io/api/v1/search?q=${encodeURIComponent(query)}&token=${ALPHA_VANTAGE_KEY}`
     );
     const data = await response.json();
 

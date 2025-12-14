@@ -131,7 +131,7 @@ def create_app(config_class=Config):
             return jsonify({"message": f"Registration error: {str(e)}"}), 500
     
     @app.route('/api/login', methods=['POST'])
-    @limiter.limit("5 per hour")  # Prevent brute force attacks
+    @limiter.limit("100 per hour")  # Increased for development
     def login():
         """
         Login user and return JWT token
@@ -280,7 +280,7 @@ def create_app(config_class=Config):
                 return jsonify({"message": f"Database error: {str(e)}"}), 500
 
     @app.route('/api/history/update', methods=['POST'])
-    @limiter.limit("10 per hour")
+    @limiter.limit("100 per hour")
     @token_required
     def update_history(current_user):
         """
@@ -333,7 +333,7 @@ def create_app(config_class=Config):
 
 
     @app.route('/api/history', methods=['GET'])
-    @limiter.limit("10 per hour")
+    @limiter.limit("100 per hour")
     @token_required
     def get_history(current_user):
         """Return the user's portfolio history sorted by date."""

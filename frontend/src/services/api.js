@@ -5,80 +5,92 @@ const getAuthHeaders = (token) => ({
   Authorization: `Bearer ${token}`,
 });
 
+// Helper function to safely parse JSON responses
+const parseResponse = async (response) => {
+  const contentType = response.headers.get('content-type');
+  
+  // Check if response is JSON
+  if (contentType && contentType.includes('application/json')) {
+    return response.json();
+  }
+  
+  // If not JSON (e.g., HTML error page), throw descriptive error
+  const text = await response.text();
+  console.error('Non-JSON response received:', text.substring(0, 200));
+  throw new Error('Server returned invalid response. Please try again or contact support.');
+};
+
+// Helper function to handle API calls with proper error handling
+const apiCall = async (url, options = {}) => {
+  try {
+    const response = await fetch(url, options);
+    
+    // Parse response (will throw if not JSON)
+    const data = await parseResponse(response);
+    
+    // Check HTTP status
+    if (!response.ok) {
+      throw new Error(data?.message || `Request failed with status ${response.status}`);
+    }
+    
+    return data;
+  } catch (error) {
+    // Handle network errors, CORS issues, etc.
+    if (error.message.includes('Failed to fetch')) {
+      throw new Error('Cannot connect to server. Please check if the server is running.');
+    }
+    throw error;
+  }
+};
+
 // Auth API
 export const login = async (credentials) => {
-  const response = await fetch(`${API_BASE_URL}/login`, {
+  return apiCall(`${API_BASE_URL}/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(credentials),
   });
-  const data = await response.json();
-  if (!response.ok) {
-    throw new Error(data?.message || 'Something went wrong.');
-  }
-  return data;
 };
 
 export const register = async (credentials) => {
-  const response = await fetch(`${API_BASE_URL}/register`, {
+  return apiCall(`${API_BASE_URL}/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(credentials),
   });
-  const data = await response.json();
-  if (!response.ok) {
-    throw new Error(data?.message || 'Something went wrong.');
-  }
-  return data;
 };
 
 // Assets API
 export const fetchAssets = async (token) => {
-  const response = await fetch(`${API_BASE_URL}/assets`, {
+  return apiCall(`${API_BASE_URL}/assets`, {
     headers: { Authorization: `Bearer ${token}` },
   });
-  if (!response.ok) {
-    throw new Error('Unable to load your assets right now.');
-  }
-  return response.json();
 };
 
 export const createAsset = async (token, assetData) => {
-  const response = await fetch(`${API_BASE_URL}/assets`, {
+  return apiCall(`${API_BASE_URL}/assets`, {
     method: 'POST',
     headers: getAuthHeaders(token),
     body: JSON.stringify(assetData),
   });
-  if (!response.ok) {
-    throw new Error('Unable to add asset right now.');
-  }
-  return response.json();
 };
 
 export const deleteAsset = async (token, assetId) => {
-  const response = await fetch(`${API_BASE_URL}/assets/${assetId}`, {
+  return apiCall(`${API_BASE_URL}/assets/${assetId}`, {
     method: 'DELETE',
     headers: { Authorization: `Bearer ${token}` },
   });
-  if (!response.ok) {
-    throw new Error('Failed to delete asset.');
-  }
-  return response.json();
 };
 
 // History API
 export const fetchHistory = async (token) => {
-  const response = await fetch(`${API_BASE_URL}/history`, {
+  return apiCall(`${API_BASE_URL}/history`, {
     headers: { Authorization: `Bearer ${token}` },
   });
-  if (!response.ok) {
-    throw new Error('Unable to load history');
-  }
-  return response.json();
 };
 
 export const updateHistory = async (token, totalValue) => {
-  const response = await fetch(`${API_BASE_URL}/history/update`, {
+  return apiCall(`${API_BASE_URL}/history/update`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -86,9 +98,5 @@ export const updateHistory = async (token, totalValue) => {
     },
     body: JSON.stringify({ total_value: totalValue }),
   });
-  if (!response.ok) {
-    throw new Error('Unable to update history');
-  }
-  return response.json();
 };
 

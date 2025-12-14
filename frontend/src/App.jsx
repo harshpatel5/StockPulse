@@ -1,31 +1,24 @@
 import React, { useState } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
 import { useAssets } from './hooks/useAssets';
 import { usePortfolio } from './hooks/usePortfolio';
 import { AuthForm } from './components/AuthForm';
+import { Navbar } from './components/Navbar';
 import { Header } from './components/Header';
 import { StatsCards } from './components/StatsCards';
 import { AllocationChart } from './components/AllocationChart';
 import { HistoryChart } from './components/HistoryChart';
 import { AssetForm } from './components/AssetForm';
 import { AssetList } from './components/AssetList';
+import Landing from './pages/Landing';
 
-const StockPulse = () => {
+// Dashboard component (logged in view)
+const Dashboard = () => {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState(null);
 
-  const {
-    token,
-    user,
-    isAuthenticated,
-    authMode,
-    setAuthMode,
-    credentials,
-    setCredentials,
-    handleLogin,
-    handleRegister,
-    handleLogout,
-  } = useAuth();
+  const { token, user, isAuthenticated, handleLogout } = useAuth();
 
   const {
     assets,
@@ -45,25 +38,6 @@ const StockPulse = () => {
     livePrices,
     history
   );
-
-  const handleAuthSubmit = async (event) => {
-    event.preventDefault();
-    setBusy(true);
-    setMessage(null);
-
-    try {
-      if (authMode === 'login') {
-        await handleLogin();
-      } else {
-        const result = await handleRegister();
-        setMessage({ type: 'success', text: result.message });
-      }
-    } catch (error) {
-      setMessage({ type: 'error', text: error.message });
-    } finally {
-      setBusy(false);
-    }
-  };
 
   const handleAddAsset = async (event) => {
     event.preventDefault();
@@ -102,30 +76,23 @@ const StockPulse = () => {
     }
   };
 
+  // Redirect to login if not authenticated
   if (!isAuthenticated) {
-    return (
-      <AuthForm
-        authMode={authMode}
-        setAuthMode={setAuthMode}
-        credentials={credentials}
-        setCredentials={setCredentials}
-        handleSubmit={handleAuthSubmit}
-        busy={busy}
-        message={message}
-      />
-    );
+    return <Navigate to="/login" replace />;
   }
 
   return (
-    <div className="app-shell">
-      <Header
-        user={user}
-        onLogout={handleLogout}
-        onRefresh={handleRefresh}
-        fetchingAssets={fetchingAssets}
-      />
+    <>
+      <Navbar />
+      <div className="app-shell">
+        <Header
+          user={user}
+          onLogout={handleLogout}
+          onRefresh={handleRefresh}
+          fetchingAssets={fetchingAssets}
+        />
 
-      {priceWarning && <div className="notice error">{priceWarning}</div>}
+        {priceWarning && <div className="notice error">{priceWarning}</div>}
 
       {message && (
         <div className={`notice ${message.type === 'error' ? 'error' : 'success'}`}>
@@ -154,8 +121,66 @@ const StockPulse = () => {
         />
         <AssetList assets={portfolioTotals.rows} onDelete={handleDeleteAsset} />
       </section>
-    </div>
+      </div>
+    </>
   );
 };
 
-export default StockPulse;
+// Login page wrapper
+const LoginPage = () => {
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState(null);
+  const { isAuthenticated, authMode, setAuthMode, credentials, setCredentials, handleLogin, handleRegister } = useAuth();
+
+  const handleAuthSubmit = async (event) => {
+    event.preventDefault();
+    setBusy(true);
+    setMessage(null);
+    try {
+      if (authMode === 'login') {
+        await handleLogin();
+      } else {
+        await handleRegister();
+        setMessage({ type: 'success', text: 'Account created. Please sign in.' });
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: error.message });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (isAuthenticated) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return (
+    <>
+      <Navbar />
+      <AuthForm
+        authMode={authMode}
+        setAuthMode={setAuthMode}
+        credentials={credentials}
+        setCredentials={setCredentials}
+        handleSubmit={handleAuthSubmit}
+        busy={busy}
+        message={message}
+      />
+    </>
+  );
+};
+
+// Main App with routing
+const App = () => {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Landing />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+      </Routes>
+    </BrowserRouter>
+  );
+};
+
+export default App;

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   LineChart,
   Line,
@@ -12,24 +12,69 @@ import { Activity } from 'lucide-react';
 import { currency } from '../utils/formatters';
 
 export const HistoryChart = ({ lineSeries }) => {
+  const [timeframe, setTimeframe] = useState('30d');
+
+  // Filter data based on selected timeframe
+  const filteredData = useMemo(() => {
+    if (!lineSeries.length) return [];
+
+    const now = new Date();
+    let daysAgo = 30;
+
+    switch (timeframe) {
+      case '7d':
+        daysAgo = 7;
+        break;
+      case '30d':
+        daysAgo = 30;
+        break;
+      case '3m':
+        daysAgo = 90;
+        break;
+      case '6m':
+        daysAgo = 180;
+        break;
+      case '1y':
+        daysAgo = 365;
+        break;
+      case 'all':
+        return lineSeries;
+      default:
+        daysAgo = 30;
+    }
+
+    const cutoffDate = new Date(now.getTime() - daysAgo * 24 * 60 * 60 * 1000);
+    return lineSeries.filter((item) => {
+      const itemDate = new Date(item.date);
+      return itemDate >= cutoffDate;
+    });
+  }, [lineSeries, timeframe]);
+
   // Calculate domain for Y-axis to show only the relevant data range
-  // This prevents small changes from appearing flat
-  const yDomain = React.useMemo(() => {
-    if (!lineSeries.length) return [0, 1];
+  const yDomain = useMemo(() => {
+    if (!filteredData.length) return [0, 1];
     
-    const values = lineSeries.map(d => d.value);
+    const values = filteredData.map(d => d.value);
     const min = Math.min(...values);
     const max = Math.max(...values);
     const range = max - min;
     
-    // Add 10% padding on each side for visual breathing room
     const padding = range * 0.1 || Math.abs(min) * 0.1 || 100;
     
     return [
       Math.max(0, min - padding),
       max + padding
     ];
-  }, [lineSeries]);
+  }, [filteredData]);
+
+  const timeframeOptions = [
+    { value: '7d', label: '7 days' },
+    { value: '30d', label: '30 days' },
+    { value: '3m', label: '3 months' },
+    { value: '6m', label: '6 months' },
+    { value: '1y', label: '1 year' },
+    { value: 'all', label: 'All time' },
+  ];
 
   return (
     <article className="card chart-card">
@@ -37,18 +82,32 @@ export const HistoryChart = ({ lineSeries }) => {
         <Activity size={18} />
         <span>Portfolio Value Over Time</span>
       </div>
-      {lineSeries.length ? (
+
+      {/* Timeframe Selector */}
+      <div className="timeframe-selector">
+        {timeframeOptions.map((option) => (
+          <button
+            key={option.value}
+            onClick={() => setTimeframe(option.value)}
+            className={`timeframe-btn ${timeframe === option.value ? 'active' : ''}`}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+
+      {filteredData.length ? (
         <ResponsiveContainer width="100%" height={280}>
-          <LineChart data={lineSeries} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+          <LineChart data={filteredData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
             <XAxis 
               dataKey="date" 
               stroke="#94a3b8" 
               tick={{ fill: '#94a3b8', fontSize: 12 }} 
               tickLine={false}
-              angle={lineSeries.length > 7 ? -45 : 0}
-              textAnchor={lineSeries.length > 7 ? 'end' : 'middle'}
-              height={lineSeries.length > 7 ? 60 : 30}
+              angle={filteredData.length > 7 ? -45 : 0}
+              textAnchor={filteredData.length > 7 ? 'end' : 'middle'}
+              height={filteredData.length > 7 ? 60 : 30}
             />
             <YAxis 
               stroke="#94a3b8" 
@@ -70,9 +129,9 @@ export const HistoryChart = ({ lineSeries }) => {
               type="monotone" 
               dataKey="value" 
               stroke="#5B8DEF" 
-              strokeWidth={2} 
-              dot={{ fill: '#5B8DEF', r: 4 }}
-              activeDot={{ r: 6 }}
+              strokeWidth={2}
+              dot={false}
+              activeDot={{ fill: '#5B8DEF', r: 5 }}
             />
           </LineChart>
         </ResponsiveContainer>

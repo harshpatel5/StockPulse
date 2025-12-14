@@ -96,9 +96,9 @@ jobs:
     
     - name: Summary
       run: |
-        echo "✓ All CI checks passed!"
-        echo "✓ Backend tests: PASSED"
-        echo "✓ Frontend build: PASSED"
-        echo "✓ Docker images: BUILT and PUSHED"
-        echo "✓ Backend image: ${{ secrets.DOCKER_USERNAME }}/stockpulse-backend:latest"
-        echo "✓ Frontend image: ${{ secrets.DOCKER_USERNAME }}/stockpulse-frontend:latest"
+        echo " All CI checks passed!"
+        echo " Backend tests: PASSED"
+        echo " Frontend build: PASSED"
+        echo " Docker images: BUILT and PUSHED"
+        echo " Backend image: ${{ secrets.DOCKER_USERNAME }}/stockpulse-backend:latest"
+        echo " Frontend image: ${{ secrets.DOCKER_USERNAME }}/stockpulse-frontend:latest"
