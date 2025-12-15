@@ -1,31 +1,31 @@
-import { ALPHA_VANTAGE_KEY } from '../constants';
+/**
+ * Price Service - All price data fetched via backend proxy
+ * API keys are NEVER exposed to the frontend
+ */
+import { fetchQuote, fetchBatchQuotes, searchSymbols as apiSearchSymbols } from './api';
 
-export const fetchPriceForSymbol = async (symbol) => {
-  if (!ALPHA_VANTAGE_KEY) {
-    console.warn('Alpha Vantage key missing; skip live quote.');
+/**
+ * Fetch live price for a single symbol via backend
+ */
+export const fetchPriceForSymbol = async (token, symbol) => {
+  if (!token) {
+    console.warn('No auth token; skip live quote.');
     return null;
   }
 
   try {
-    const response = await fetch(
-      `https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${ALPHA_VANTAGE_KEY}`
-    );
-    const data = await response.json();
-
-    if (!data || data.error) {
-      console.warn('Alpha Vantage response', symbol, data);
-      return null;
-    }
-
-    const price = data?.c;
-    return Number.isFinite(price) ? price : null;
+    const data = await fetchQuote(token, symbol);
+    return data?.price ?? null;
   } catch (error) {
     console.warn(`Live price lookup failed for ${symbol}`, error);
     return null;
   }
 };
 
-export const refreshPrices = async (assetList = []) => {
+/**
+ * Refresh prices for all stock assets via backend
+ */
+export const refreshPrices = async (token, assetList = []) => {
   const list = Array.isArray(assetList) ? assetList : [];
   const stocks = list.filter((asset) => {
     const normalizedType = asset.type ? asset.type.toLowerCase().trim() : '';
@@ -36,35 +36,40 @@ export const refreshPrices = async (assetList = []) => {
     return { prices: {}, warning: null };
   }
 
-  if (!ALPHA_VANTAGE_KEY) {
+  if (!token) {
     return {
       prices: {},
-      warning: 'Add your Alpha Vantage API key (VITE_ALPHA_VANTAGE_KEY) to enable live quotes.',
+      warning: 'Please log in to fetch live stock prices.',
     };
   }
 
-  const entries = await Promise.all(
-    stocks.map(async (asset) => {
-      const price = await fetchPriceForSymbol(asset.name.trim().toUpperCase());
-      return { symbol: asset.name, price };
-    })
-  );
+  try {
+    // Use batch endpoint for efficiency
+    const symbols = stocks.map((asset) => asset.name.trim().toUpperCase());
+    const data = await fetchBatchQuotes(token, symbols);
+    
+    const prices = data?.prices || {};
 
-  const prices = entries.reduce((acc, entry) => {
-    if (entry.price) acc[entry.symbol] = entry.price;
-    return acc;
-  }, {});
+    const warning = !Object.keys(prices).length
+      ? 'Could not fetch live prices. Using cost basis.'
+      : null;
 
-  const warning = !Object.keys(prices).length
-    ? 'Alpha Vantage did not return live prices. Using cost basis.'
-    : null;
-
-  return { prices, warning };
+    return { prices, warning };
+  } catch (error) {
+    console.warn('Batch price fetch failed', error);
+    return {
+      prices: {},
+      warning: 'Price service temporarily unavailable. Using cost basis.',
+    };
+  }
 };
 
-export const searchSymbols = async (query) => {
-  if (!ALPHA_VANTAGE_KEY) {
-    console.warn('Alpha Vantage key missing; cannot search symbols.');
+/**
+ * Search for stock symbols via backend
+ */
+export const searchSymbols = async (token, query) => {
+  if (!token) {
+    console.warn('No auth token; cannot search symbols.');
     return [];
   }
 
@@ -73,21 +78,8 @@ export const searchSymbols = async (query) => {
   }
 
   try {
-    const response = await fetch(
-      `https://finnhub.io/api/v1/search?q=${encodeURIComponent(query)}&token=${ALPHA_VANTAGE_KEY}`
-    );
-    const data = await response.json();
-
-    if (!data || data.error || !data.result) {
-      return [];
-    }
-
-    // Return up to 10 results with symbol and description
-    return data.result.slice(0, 10).map((item) => ({
-      symbol: item.symbol,
-      description: item.description,
-      displaySymbol: item.displaySymbol || item.symbol,
-    }));
+    const data = await apiSearchSymbols(token, query);
+    return data?.results || [];
   } catch (error) {
     console.warn(`Symbol search failed for ${query}`, error);
     return [];

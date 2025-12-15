@@ -30,8 +30,8 @@ export const useAssets = (token) => {
       const data = await fetchAssets(token);
       setAssets(data);
 
-      // Get live prices first
-      const { prices, warning } = await refreshPrices(data);
+      // Get live prices first (via backend proxy - secure)
+      const { prices, warning } = await refreshPrices(token, data);
       setLivePrices(prices);
       setPriceWarning(warning);
 

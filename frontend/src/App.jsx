@@ -116,6 +116,7 @@ const Dashboard = () => {
           setFormAsset={setFormAsset}
           onSubmit={handleAddAsset}
           busy={busy}
+          token={token}
         />
         <AssetList assets={portfolioTotals.rows} onDelete={handleDeleteAsset} />
       </section>

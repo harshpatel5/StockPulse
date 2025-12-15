@@ -3,7 +3,7 @@ import { Plus, Search } from 'lucide-react';
 import { ASSET_TYPES } from '../constants';
 import { searchSymbols } from '../services/priceService';
 
-export const AssetForm = ({ formAsset, setFormAsset, onSubmit, busy }) => {
+export const AssetForm = ({ formAsset, setFormAsset, onSubmit, busy, token }) => {
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -20,9 +20,16 @@ export const AssetForm = ({ formAsset, setFormAsset, onSubmit, busy }) => {
       return;
     }
 
+    if (!token) {
+      setSearchResults([]);
+      setShowDropdown(false);
+      setIsSearching(false);
+      return;
+    }
+
     setIsSearching(true);
     try {
-      const results = await searchSymbols(query);
+      const results = await searchSymbols(token, query);
       setSearchResults(results);
       setShowDropdown(results.length > 0);
     } catch {
@@ -31,7 +38,7 @@ export const AssetForm = ({ formAsset, setFormAsset, onSubmit, busy }) => {
     } finally {
       setIsSearching(false);
     }
-  }, []);
+  }, [token]);
 
   // Handle input change with debouncing
   const handleInputChange = (event) => {

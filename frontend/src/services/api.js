@@ -100,3 +100,24 @@ export const updateHistory = async (token, totalValue) => {
   });
 };
 
+// Prices API (server-side proxy to Finnhub - keeps API key secure)
+export const fetchQuote = async (token, symbol) => {
+  return apiCall(`${API_BASE_URL}/prices/quote/${encodeURIComponent(symbol)}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+};
+
+export const fetchBatchQuotes = async (token, symbols) => {
+  return apiCall(`${API_BASE_URL}/prices/batch`, {
+    method: 'POST',
+    headers: getAuthHeaders(token),
+    body: JSON.stringify({ symbols }),
+  });
+};
+
+export const searchSymbols = async (token, query) => {
+  return apiCall(`${API_BASE_URL}/prices/search?q=${encodeURIComponent(query)}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+};
+
