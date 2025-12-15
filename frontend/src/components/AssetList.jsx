@@ -20,10 +20,11 @@ export const AssetList = ({ assets, onDelete }) => {
                 </div>
                 <button
                   type="button"
-                  className="btn icon"
+                  className="btn icon-delete"
                   onClick={() => onDelete(asset.id)}
+                  title="Delete asset"
                 >
-                  <Trash2 size={16} />
+                  <Trash2 size={18} />
                 </button>
               </div>
 

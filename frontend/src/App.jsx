@@ -86,8 +86,6 @@ const Dashboard = () => {
       <Navbar />
       <div className="app-shell">
         <Header
-          user={user}
-          onLogout={handleLogout}
           onRefresh={handleRefresh}
           fetchingAssets={fetchingAssets}
         />
