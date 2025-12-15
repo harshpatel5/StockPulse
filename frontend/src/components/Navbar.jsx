@@ -8,8 +8,6 @@ export const Navbar = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const isActive = (path) => location.pathname === path;
-
   const onLogout = () => {
     handleLogout();
     navigate('/');

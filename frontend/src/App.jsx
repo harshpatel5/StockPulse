@@ -18,7 +18,7 @@ const Dashboard = () => {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState(null);
 
-  const { token, user, isAuthenticated, handleLogout } = useAuth();
+  const { token, isAuthenticated } = useAuth();
 
   const {
     assets,
