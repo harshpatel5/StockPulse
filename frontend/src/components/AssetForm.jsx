@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Plus, Search } from 'lucide-react';
 import { ASSET_TYPES } from '../constants';
-import { searchSymbols } from '../services/priceService';
+import { searchSymbols, searchCrypto } from '../services/priceService';
 
 export const AssetForm = ({ formAsset, setFormAsset, onSubmit, busy, token }) => {
   const [searchResults, setSearchResults] = useState([]);
@@ -11,7 +11,7 @@ export const AssetForm = ({ formAsset, setFormAsset, onSubmit, busy, token }) =>
   const dropdownRef = useRef(null);
   const inputRef = useRef(null);
 
-  // Debounced search function
+  // Debounced search function - searches based on asset type
   const performSearch = useCallback(async (query) => {
     if (!query || query.length < 2) {
       setSearchResults([]);
@@ -29,7 +29,17 @@ export const AssetForm = ({ formAsset, setFormAsset, onSubmit, busy, token }) =>
 
     setIsSearching(true);
     try {
-      const results = await searchSymbols(token, query);
+      // Search based on selected asset type
+      const assetType = formAsset.type?.toLowerCase() || 'stock';
+      let results = [];
+      
+      if (assetType === 'crypto') {
+        results = await searchCrypto(token, query);
+      } else {
+        // Stock and ETF both use Finnhub search (ETFs are listed like stocks)
+        results = await searchSymbols(token, query);
+      }
+      
       setSearchResults(results);
       setShowDropdown(results.length > 0);
     } catch {
@@ -38,7 +48,7 @@ export const AssetForm = ({ formAsset, setFormAsset, onSubmit, busy, token }) =>
     } finally {
       setIsSearching(false);
     }
-  }, [token]);
+  }, [token, formAsset.type]);
 
   // Handle input change with debouncing
   const handleInputChange = (event) => {
@@ -66,6 +76,12 @@ export const AssetForm = ({ formAsset, setFormAsset, onSubmit, busy, token }) =>
       inputRef.current.focus();
     }
   };
+
+  // Clear search results when asset type changes
+  useEffect(() => {
+    setSearchResults([]);
+    setShowDropdown(false);
+  }, [formAsset.type]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -102,6 +118,27 @@ export const AssetForm = ({ formAsset, setFormAsset, onSubmit, busy, token }) =>
         <span>Add asset</span>
       </div>
       <form className="stack" onSubmit={onSubmit}>
+        <label className="field">
+          <span>Type</span>
+          <select
+            value={formAsset.type}
+            onChange={(event) =>
+              setFormAsset((prev) => ({ ...prev, type: event.target.value }))
+            }
+          >
+            {ASSET_TYPES.map((type) => (
+              <option key={type} value={type}>
+                {type}
+              </option>
+            ))}
+          </select>
+          {(formAsset.type === 'Stock' || formAsset.type === 'ETF') && (
+            <small style={{ color: 'var(--color-text-muted)', fontSize: '0.75rem', marginTop: '4px' }}>
+              📍 Currently supports US exchanges only (NYSE, NASDAQ). More exchanges coming soon!
+            </small>
+          )}
+        </label>
+
         <label className="field" style={{ position: 'relative' }}>
           <span>Ticker / name</span>
           <div style={{ position: 'relative' }}>
@@ -115,7 +152,7 @@ export const AssetForm = ({ formAsset, setFormAsset, onSubmit, busy, token }) =>
                   setShowDropdown(true);
                 }
               }}
-              placeholder="AAPL"
+              placeholder={formAsset.type === 'Crypto' ? 'BTC' : 'AAPL'}
               required
               style={{ paddingRight: '40px' }}
             />
@@ -184,22 +221,6 @@ export const AssetForm = ({ formAsset, setFormAsset, onSubmit, busy, token }) =>
               ))}
             </div>
           )}
-        </label>
-
-        <label className="field">
-          <span>Type</span>
-          <select
-            value={formAsset.type}
-            onChange={(event) =>
-              setFormAsset((prev) => ({ ...prev, type: event.target.value }))
-            }
-          >
-            {ASSET_TYPES.map((type) => (
-              <option key={type} value={type}>
-                {type}
-              </option>
-            ))}
-          </select>
         </label>
 
         <div className="two-col">

@@ -12,7 +12,9 @@ export const usePortfolio = (assets, livePrices, history) => {
         const quantity = toNumber(asset.quantity);
         const costBasis = toNumber(asset.cost_basis ?? asset.costBasis);
         const averagePrice = quantity ? costBasis / quantity : 0;
-        const currentPrice = livePrices[asset.name] ?? averagePrice;
+        // Normalize to uppercase for price lookup (API returns uppercase keys)
+        const symbolKey = asset.name?.trim().toUpperCase();
+        const currentPrice = livePrices[symbolKey] ?? averagePrice;
         const currentValue = currentPrice * quantity;
         const change = currentValue - costBasis;
 

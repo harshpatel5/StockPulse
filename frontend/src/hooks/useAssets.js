@@ -40,7 +40,9 @@ export const useAssets = (token) => {
         const quantity = toNumber(asset.quantity);
         const costBasis = toNumber(asset.cost_basis ?? asset.costBasis);
         const averagePrice = quantity ? costBasis / quantity : 0;
-        const currentPrice = prices[asset.name] ?? averagePrice;
+        // Normalize to uppercase for price lookup (API returns uppercase keys)
+        const symbolKey = asset.name?.trim().toUpperCase();
+        const currentPrice = prices[symbolKey] ?? averagePrice;
         const currentValue = currentPrice * quantity;
         return total + currentValue;
       }, 0);

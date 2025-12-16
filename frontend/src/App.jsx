@@ -9,6 +9,7 @@ import { Header } from './components/Header';
 import { StatsCards } from './components/StatsCards';
 import { AllocationChart } from './components/AllocationChart';
 import { HistoryChart } from './components/HistoryChart';
+import { BenchmarkChart } from './components/BenchmarkChart';
 import { AssetForm } from './components/AssetForm';
 import { AssetList } from './components/AssetList';
 import Landing from './pages/Landing';
@@ -106,8 +107,17 @@ const Dashboard = () => {
       />
 
       <section className="charts-grid">
-        <AllocationChart allocationData={allocationData} />
+        <AllocationChart 
+          allocationData={allocationData} 
+          token={token}
+          livePrices={livePrices}
+        />
         <HistoryChart lineSeries={lineSeries} />
+      </section>
+
+      {/* Portfolio vs S&P 500 Comparison */}
+      <section className="benchmark-section">
+        <BenchmarkChart token={token} />
       </section>
 
       <section className="content-grid">

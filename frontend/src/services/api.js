@@ -121,3 +121,31 @@ export const searchSymbols = async (token, query) => {
   });
 };
 
+// Crypto API (server-side proxy to CoinGecko - free, no API key)
+export const fetchCryptoQuote = async (token, symbol) => {
+  return apiCall(`${API_BASE_URL}/crypto/quote/${encodeURIComponent(symbol)}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+};
+
+export const searchCrypto = async (token, query) => {
+  return apiCall(`${API_BASE_URL}/crypto/search?q=${encodeURIComponent(query)}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+};
+
+// Portfolio Insights API (backend-heavy calculations)
+export const fetchPortfolioInsights = async (token, livePrices = {}) => {
+  return apiCall(`${API_BASE_URL}/portfolio/insights`, {
+    method: 'POST',
+    headers: getAuthHeaders(token),
+    body: JSON.stringify({ prices: livePrices }),
+  });
+};
+
+// Benchmark Comparison API (Portfolio vs S&P 500)
+export const fetchBenchmarkComparison = async (token) => {
+  return apiCall(`${API_BASE_URL}/benchmark/comparison`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+};
