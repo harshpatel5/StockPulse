@@ -9,7 +9,7 @@ from sqlalchemy import exc
 from datetime import date, datetime
 from apscheduler.schedulers.background import BackgroundScheduler
 from app.scheduler import record_daily_snapshot, fetch_live_price, fetch_crypto_price, search_crypto, FINNHUB_KEY
-import requests
+import requests, jwt
 import os
 import logging
 
@@ -44,7 +44,7 @@ def create_app(config_class=Config):
     # Create database tables if they don't exist
     with app.app_context():
         db.create_all()
-        print("✓ Database tables created successfully!")
+        print(" Database tables created successfully!")
         
         # Configure logging for scheduler
         logging.basicConfig(level=logging.INFO)
@@ -78,7 +78,7 @@ def create_app(config_class=Config):
         # Start the scheduler
         if not scheduler.running:
             scheduler.start()
-            print("✓ APScheduler initialized - Daily snapshots enabled!")
+            print("APScheduler initialized - Daily snapshots enabled!")
     
     # -------------------------------------------------------------------------
     # HEALTH CHECK ROUTE
@@ -96,6 +96,18 @@ def create_app(config_class=Config):
     # AUTHENTICATION ROUTES
     # -------------------------------------------------------------------------
     
+    @app.route('/api/me', methods=['GET'])
+    @token_required
+    @limiter.limit("1000 per hour")
+    def me(current_user):
+        """Get current authenticated user info"""
+        if not current_user:
+            return jsonify({"message": "User not found"}), 404
+                                        
+        return jsonify({
+            "user": current_user.to_dict()
+        }), 200
+
     @app.route('/api/register', methods=['POST'])
     @limiter.limit("3 per hour")  # Prevent spam registrations
     def register():
@@ -172,7 +184,7 @@ def create_app(config_class=Config):
     # -------------------------------------------------------------------------
     
     @app.route('/api/assets', methods=['GET', 'POST'])
-    @limiter.limit("30 per hour")  # Allow normal asset operations
+    @limiter.limit("200 per hour")  # Increased temporarily to avoid accidental 429s
     @token_required
     def manage_assets(current_user):
         """

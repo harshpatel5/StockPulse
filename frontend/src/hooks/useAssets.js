@@ -12,56 +12,57 @@ export const useAssets = (token) => {
   const [fetchingAssets, setFetchingAssets] = useState(false);
   const [priceWarning, setPriceWarning] = useState(null);
 
-  const loadHistory = useCallback(async () => {
-    if (!token) return;
-    try {
-      const data = await fetchHistory(token);
-      setHistory(data);
-    } catch (error) {
-      console.error('History fetch failed:', error);
-    }
-  }, [token]);
-
+  // Parallel data loading using Promise.all
   const loadAssets = useCallback(async () => {
     if (!token) return;
 
     setFetchingAssets(true);
     try {
-      const data = await fetchAssets(token);
-      setAssets(data);
+      // Step 1: Fetch assets and history in parallel
+      const [assetsData, historyData] = await Promise.all([
+        fetchAssets(token),
+        fetchHistory(token)
+      ]);
 
-      // Get live prices first (via backend proxy - secure)
-      const { prices, warning } = await refreshPrices(token, data);
+      // Set initial data immediately
+      setAssets(assetsData);
+      setHistory(historyData);
+
+      // Step 2: Fetch live prices (depends on assets data)
+      const { prices, warning } = await refreshPrices(token, assetsData);
       setLivePrices(prices);
       setPriceWarning(warning);
 
-      // Calculate current portfolio value with live prices
-      const currentTotalValue = data.reduce((total, asset) => {
+      // Step 3: Calculate current portfolio value with live prices
+      const currentTotalValue = assetsData.reduce((total, asset) => {
         const quantity = toNumber(asset.quantity);
         const costBasis = toNumber(asset.cost_basis ?? asset.costBasis);
         const averagePrice = quantity ? costBasis / quantity : 0;
-        // Normalize to uppercase for price lookup (API returns uppercase keys)
         const symbolKey = asset.name?.trim().toUpperCase();
         const currentPrice = prices[symbolKey] ?? averagePrice;
         const currentValue = currentPrice * quantity;
         return total + currentValue;
       }, 0);
 
-      // Update history with calculated total value
-      await updateHistory(token, currentTotalValue);
-      await loadHistory();
+      // Step 4: Update history with calculated total value
+      // This is fire-and-forget to avoid blocking UI
+      updateHistory(token, currentTotalValue)
+        .then(() => fetchHistory(token))
+        .then(setHistory)
+        .catch((error) => console.error('Failed to update history:', error));
+
     } catch (error) {
       console.error('Failed to load assets:', error);
       throw error;
     } finally {
       setFetchingAssets(false);
     }
-  }, [token, loadHistory]);
+  }, [token]);
 
+  // Initialize data on mount or token change
   useEffect(() => {
     if (token) {
       loadAssets();
-      loadHistory();
     } else {
       // Clear state on logout
       setAssets([]);
@@ -70,7 +71,7 @@ export const useAssets = (token) => {
       setFormAsset(DEFAULT_ASSET);
       setPriceWarning(null);
     }
-  }, [token, loadAssets, loadHistory]);
+  }, [token, loadAssets]);
 
   const addAsset = async () => {
     if (!token) return;
@@ -97,7 +98,6 @@ export const useAssets = (token) => {
       const newTotalQuantity = existingQuantity + payload.quantity;
       const newTotalCostBasis = existingCostBasis + payload.cost_basis;
 
-      // Update existing asset with merged values
       const updatePayload = {
         quantity: newTotalQuantity,
         cost_basis: newTotalCostBasis,
@@ -148,4 +148,3 @@ export const useAssets = (token) => {
     removeAsset,
   };
 };
-

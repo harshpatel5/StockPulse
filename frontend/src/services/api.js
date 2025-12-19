@@ -28,6 +28,13 @@ const apiCall = async (url, options = {}) => {
     // Parse response (will throw if not JSON)
     const data = await parseResponse(response);
     
+    if (response.status === 401) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      
+      window.location.href = '/login';
+      throw new Error('Session expired. Please log in again.');
+    }
     // Check HTTP status
     if (!response.ok) {
       throw new Error(data?.message || `Request failed with status ${response.status}`);
@@ -148,4 +155,18 @@ export const fetchBenchmarkComparison = async (token) => {
   return apiCall(`${API_BASE_URL}/benchmark/comparison`, {
     headers: { Authorization: `Bearer ${token}` },
   });
+};
+
+export const getMe = async () => {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    return null;
+  }
+  
+  const data = await apiCall(`${API_BASE_URL}/me`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  
+  // Backend returns {user: {...}}, extract and return just the user object
+  return data?.user || data;
 };

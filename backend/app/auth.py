@@ -12,7 +12,7 @@ def generate_token(user_id):
     """
     payload = {
         'user_id': user_id,
-        'exp': datetime.utcnow() + timedelta(hours=current_app.config['JWT_EXPIRATION_HOURS']),
+        'exp': datetime.utcnow() + timedelta(minutes=current_app.config.get('JWT_EXPIRATION_MIN', 3)),
         'iat': datetime.utcnow()  # Issued at time
     }
     

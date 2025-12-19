@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
 import { useAssets } from './hooks/useAssets';
 import { usePortfolio } from './hooks/usePortfolio';
@@ -14,12 +14,14 @@ import { AssetForm } from './components/AssetForm';
 import { AssetList } from './components/AssetList';
 import Landing from './pages/Landing';
 
+
 // Dashboard component (logged in view)
 const Dashboard = () => {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState(null);
 
   const { token, isAuthenticated } = useAuth();
+  
 
   const {
     assets,
@@ -137,9 +139,17 @@ const Dashboard = () => {
 
 // Login page wrapper
 const LoginPage = () => {
+  const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState(null);
   const { isAuthenticated, authMode, setAuthMode, credentials, setCredentials, handleLogin, handleRegister } = useAuth();
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
 
   const handleAuthSubmit = async (event) => {
     event.preventDefault();
@@ -148,19 +158,22 @@ const LoginPage = () => {
     try {
       if (authMode === 'login') {
         await handleLogin();
+        // Login successful - useEffect will handle redirect
       } else {
         await handleRegister();
         setMessage({ type: 'success', text: 'Account created. Please sign in.' });
       }
     } catch (error) {
-      setMessage({ type: 'error', text: error.message });
+      console.error('Auth error:', error);
+      setMessage({ type: 'error', text: error.message || 'Authentication failed. Please try again.' });
     } finally {
       setBusy(false);
     }
   };
 
+  // Show loading or redirect if authenticated
   if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />;
+    return null; // Will redirect via useEffect
   }
 
   return (

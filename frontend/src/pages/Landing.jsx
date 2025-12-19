@@ -155,8 +155,8 @@ const Landing = () => {
   ];
 
   const stats = [
-    { value: 10000, suffix: '+', label: 'Active Users' },
-    { value: 50, suffix: 'M+', label: 'Assets Tracked' },
+    { value: 10, suffix: '+', label: 'Active Users' },
+    { value: 50, suffix: 'K+', label: 'Assets Tracked' },
     { value: 99.9, suffix: '%', label: 'Uptime' },
     { value: 4.9, suffix: '/5', label: 'User Rating' }
   ];
