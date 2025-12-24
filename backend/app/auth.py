@@ -10,9 +10,10 @@ def generate_token(user_id):
     Create a JWT token for authenticated user
     Token contains user_id and expiration time
     """
+    expiration_hours = current_app.config.get('JWT_EXPIRATION_HOURS', 24)
     payload = {
         'user_id': user_id,
-        'exp': datetime.utcnow() + timedelta(minutes=current_app.config.get('JWT_EXPIRATION_MIN', 3)),
+        'exp': datetime.utcnow() + timedelta(hours=expiration_hours),
         'iat': datetime.utcnow()  # Issued at time
     }
     

@@ -22,8 +22,8 @@ class Config:
     # App secret for signing JWTs
     SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
     
-    # JWT token expiration time (in minutes)
-    JWT_EXPIRATION_MIN = int(os.environ.get('JWT_EXPIRATION_MIN', 3))
+    # JWT token expiration time (in hours) - set to 24 hours by default
+    JWT_EXPIRATION_HOURS = int(os.environ.get('JWT_EXPIRATION_HOURS', 24))
     
     # Flask debug mode (False in production!)
     DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
