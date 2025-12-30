@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { PieChart as PieChartIcon, TrendingUp, TrendingDown, Layers } from 'lucide-react';
 import { currency } from '../utils/formatters';
 import { fetchPortfolioInsights } from '../services/api';
+import { dedupeRequest } from '../utils/requestDeduplication';
 
 // Extended color palette matching the reference image style
 const CHART_COLORS = [
@@ -95,15 +96,28 @@ export const AllocationChart = ({ allocationData, token, livePrices }) => {
   const [viewMode, setViewMode] = useState('asset'); // 'asset' or 'type'
   const [insights, setInsights] = useState(null);
   const [loading, setLoading] = useState(false);
+  const prevPricesRef = useRef(null);
+  const fetchTimeoutRef = useRef(null);
 
   // Fetch insights from backend when prices change
   useEffect(() => {
     const fetchInsights = async () => {
-      if (!token) return;
+      if (!token || !livePrices || Object.keys(livePrices).length === 0) return;
+      
+      // Check if prices actually changed
+      const pricesStr = JSON.stringify(livePrices);
+      if (prevPricesRef.current === pricesStr) return;
+      prevPricesRef.current = pricesStr;
       
       setLoading(true);
       try {
-        const data = await fetchPortfolioInsights(token, livePrices);
+        // Use deduplication with a key based on token and prices hash
+        const pricesHash = pricesStr.substring(0, 50); // Use first 50 chars as hash
+        const data = await dedupeRequest(
+          `fetchInsights:${token}:${pricesHash}`,
+          () => fetchPortfolioInsights(token, livePrices),
+          500 // 500ms dedupe window
+        );
         setInsights(data);
       } catch (error) {
         console.warn('Failed to fetch portfolio insights:', error);
@@ -112,7 +126,21 @@ export const AllocationChart = ({ allocationData, token, livePrices }) => {
       }
     };
 
-    fetchInsights();
+    // Clear any pending timeout
+    if (fetchTimeoutRef.current) {
+      clearTimeout(fetchTimeoutRef.current);
+    }
+
+    // Debounce to prevent multiple rapid calls
+    fetchTimeoutRef.current = setTimeout(() => {
+      fetchInsights();
+    }, 300);
+
+    return () => {
+      if (fetchTimeoutRef.current) {
+        clearTimeout(fetchTimeoutRef.current);
+      }
+    };
   }, [token, livePrices]);
 
   // Get data based on view mode

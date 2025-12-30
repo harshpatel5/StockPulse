@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
 import { useAssets } from './hooks/useAssets';
@@ -20,7 +20,7 @@ const Dashboard = () => {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState(null);
 
-  const { token, isAuthenticated } = useAuth();
+  const { token, isAuthenticated, isValidating } = useAuth();
   
 
   const {
@@ -31,6 +31,7 @@ const Dashboard = () => {
     setFormAsset,
     fetchingAssets,
     priceWarning,
+    pricesLoaded,
     loadAssets,
     addAsset,
     removeAsset,
@@ -79,9 +80,31 @@ const Dashboard = () => {
     }
   };
 
+  // Show loading while validating authentication
+  if (isValidating) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <div>Loading...</div>
+      </div>
+    );
+  }
+
   // Redirect to login if not authenticated
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
+  }
+
+  // Show loading while fetching assets and prices
+  // This prevents showing cost basis values before live prices load
+  if (fetchingAssets || !pricesLoaded) {
+    return (
+      <>
+        <Navbar />
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 'calc(100vh - 60px)' }}>
+          <div>Loading portfolio data...</div>
+        </div>
+      </>
+    );
   }
 
   return (
@@ -142,19 +165,28 @@ const LoginPage = () => {
   const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState(null);
-  const { isAuthenticated, authMode, setAuthMode, credentials, setCredentials, handleLogin, handleRegister } = useAuth();
+  const submittingRef = useRef(false);
+  const { isAuthenticated, isValidating, authMode, setAuthMode, credentials, setCredentials, handleLogin, handleRegister } = useAuth();
 
-  // Redirect if already authenticated
+  // Redirect if already authenticated (but wait for validation to complete)
   useEffect(() => {
-    if (isAuthenticated) {
+    if (!isValidating && isAuthenticated) {
       navigate('/dashboard', { replace: true });
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, isValidating, navigate]);
 
   const handleAuthSubmit = async (event) => {
     event.preventDefault();
+    
+    // Prevent duplicate submissions (React StrictMode in dev causes double calls)
+    if (submittingRef.current || busy) {
+      return;
+    }
+    
+    submittingRef.current = true;
     setBusy(true);
     setMessage(null);
+    
     try {
       if (authMode === 'login') {
         await handleLogin();
@@ -168,8 +200,18 @@ const LoginPage = () => {
       setMessage({ type: 'error', text: error.message || 'Authentication failed. Please try again.' });
     } finally {
       setBusy(false);
+      submittingRef.current = false;
     }
   };
+
+  // Show loading while validating authentication
+  if (isValidating) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <div>Loading...</div>
+      </div>
+    );
+  }
 
   // Show loading or redirect if authenticated
   if (isAuthenticated) {

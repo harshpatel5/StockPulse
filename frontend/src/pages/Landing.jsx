@@ -1,4 +1,4 @@
-import { Link, Navigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 // eslint-disable-next-line no-unused-vars
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { useEffect, useState, useRef } from 'react';
@@ -13,7 +13,6 @@ import {
   ChevronDown
 } from 'lucide-react';
 import { Navbar } from '../components/Navbar';
-import { useAuth } from '../hooks/useAuth';
 import './Landing.css';
 
 // Animated counter component
@@ -92,7 +91,6 @@ const TypeWriter = ({ words }) => {
 };
 
 const Landing = () => {
-  const { isAuthenticated } = useAuth();
   const heroRef = useRef(null);
   const { scrollYProgress } = useScroll({
     target: heroRef,
@@ -101,10 +99,6 @@ const Landing = () => {
 
   const y = useTransform(scrollYProgress, [0, 1], [0, 200]);
   const opacity = useTransform(scrollYProgress, [0, 0.5], [1, 0]);
-
-  if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />;
-  }
 
   const fadeInUp = {
     initial: { opacity: 0, y: 60 },

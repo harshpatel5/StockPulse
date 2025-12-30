@@ -14,7 +14,8 @@ COPY public ./public
 COPY index.html vite.config.js ./
 
 # Build arg for API URL (baked into the build)
-ARG VITE_API_BASE_URL
+# Default to localhost:5000/api for Docker setup
+ARG VITE_API_BASE_URL=http://localhost:5000/api
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 
 # Build the production bundle

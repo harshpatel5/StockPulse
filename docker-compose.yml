@@ -45,19 +45,15 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: http://localhost:5000/api
     container_name: stockpulse-frontend
     restart: unless-stopped
-    environment:
-      VITE_API_BASE_URL: /api
-      VITE_BACKEND_URL: http://backend:5000
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
     ports:
       - "5173:5173"
     depends_on:
       - backend
-    command: npm run dev -- --host
+    # Uses production build served with 'serve' (defined in Dockerfile CMD)
 
 volumes:
   postgres_data:

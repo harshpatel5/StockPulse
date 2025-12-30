@@ -8,7 +8,7 @@ from app.config import Config
 from sqlalchemy import exc
 from datetime import date, datetime
 from apscheduler.schedulers.background import BackgroundScheduler
-from app.scheduler import record_daily_snapshot, fetch_live_price, fetch_crypto_price, search_crypto, FINNHUB_KEY
+from app.scheduler import record_daily_snapshot, fetch_live_price, fetch_crypto_price, search_crypto, calculate_user_portfolio_value, FINNHUB_KEY
 import requests, jwt
 import os
 import logging
@@ -351,15 +351,77 @@ def create_app(config_class=Config):
     @limiter.limit("100 per hour")
     @token_required
     def get_history(current_user):
-        """Return the user's portfolio history sorted by date."""
+        """
+        Return the user's portfolio history sorted by date.
+        Automatically backfills missing dates to ensure consistent charting.
+        """
         try:
+            from datetime import timedelta
+            
             history = PortfolioHistory.query.filter_by(
                 user_id=current_user.id
             ).order_by(PortfolioHistory.date.asc()).all()
 
-            return jsonify([h.to_dict() for h in history]), 200
+            if not history:
+                return jsonify([]), 200
+
+            # Get date range
+            first_date = min(h.date for h in history)
+            today = date.today()
+            
+            # Create a dictionary for quick lookup
+            history_dict = {h.date: h.total_value for h in history}
+            
+            # Backfill missing dates between first date and today
+            # Use last known value for missing dates (forward fill)
+            backfilled_history = []
+            current_date = first_date
+            last_known_value = history_dict.get(current_date, 0.0)
+            
+            while current_date <= today:
+                if current_date in history_dict:
+                    # Use actual recorded value
+                    last_known_value = history_dict[current_date]
+                    backfilled_history.append({
+                        "date": current_date.isoformat(),
+                        "total_value": last_known_value
+                    })
+                else:
+                    # Backfill missing date with last known value
+                    # This ensures consistent charting even if scheduler missed days
+                    backfilled_history.append({
+                        "date": current_date.isoformat(),
+                        "total_value": last_known_value
+                    })
+                
+                current_date += timedelta(days=1)
+            
+            # Ensure today's snapshot exists (create if missing)
+            if today not in history_dict:
+                try:
+                    # Calculate current portfolio value
+                    total_value = calculate_user_portfolio_value(current_user.id)
+                    
+                    # Create snapshot for today
+                    snapshot = PortfolioHistory(
+                        user_id=current_user.id,
+                        date=today,
+                        total_value=total_value
+                    )
+                    db.session.add(snapshot)
+                    db.session.commit()
+                    
+                    # Update the backfilled history with actual value
+                    backfilled_history[-1]["total_value"] = total_value
+                    logger.info(f"Created missing snapshot for user {current_user.id} on {today}")
+                except Exception as e:
+                    logger.warning(f"Failed to create today's snapshot: {str(e)}")
+                    # Use last known value if calculation fails
+            
+            return jsonify(backfilled_history), 200
 
         except Exception as e:
+            logger.error(f"Error fetching history: {str(e)}")
             return jsonify({"message": f"Error fetching history: {str(e)}"}), 500
 
     # -------------------------------------------------------------------------

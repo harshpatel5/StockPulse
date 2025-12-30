@@ -9,6 +9,7 @@ import {
   fetchCryptoQuote,
   searchCrypto as apiSearchCrypto
 } from './api';
+import { dedupeRequest } from '../utils/requestDeduplication';
 
 /**
  * Fetch live price for a single stock symbol via backend
@@ -81,7 +82,12 @@ export const refreshPrices = async (token, assetList = []) => {
   if (stocksAndETFs.length) {
     try {
       const symbols = stocksAndETFs.map((asset) => asset.name.trim().toUpperCase());
-      const data = await fetchBatchQuotes(token, symbols);
+      const symbolsKey = symbols.sort().join(',');
+      const data = await dedupeRequest(
+        `fetchBatchQuotes:${token}:${symbolsKey}`,
+        () => fetchBatchQuotes(token, symbols),
+        1000 // 1 second dedupe window for price calls
+      );
       Object.assign(prices, data?.prices || {});
     } catch (error) {
       console.warn('Stock/ETF price fetch failed', error);

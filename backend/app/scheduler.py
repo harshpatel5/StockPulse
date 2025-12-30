@@ -164,7 +164,10 @@ def record_daily_snapshot():
     """
     Daily scheduled job: Record portfolio value snapshot for each user
     This runs once per day and creates/updates PortfolioHistory entries
+    Also backfills any missing dates from the last snapshot to today
     """
+    from datetime import timedelta
+    
     try:
         logger.info("Starting daily portfolio snapshot job...")
         today = date.today()
@@ -196,6 +199,36 @@ def record_daily_snapshot():
                     )
                     db.session.add(snapshot)
                     logger.info(f"Created snapshot for user {user.email}: ${total_value:.2f}")
+                
+                # Backfill missing dates between last snapshot and today
+                # This handles cases where the scheduler didn't run for a few days
+                last_snapshot = PortfolioHistory.query.filter_by(
+                    user_id=user.id
+                ).order_by(PortfolioHistory.date.desc()).first()
+                
+                if last_snapshot and last_snapshot.date < today:
+                    # Fill gaps between last snapshot and today
+                    current_date = last_snapshot.date + timedelta(days=1)
+                    last_value = last_snapshot.total_value
+                    
+                    while current_date < today:
+                        # Check if this date already has a snapshot
+                        existing_gap = PortfolioHistory.query.filter_by(
+                            user_id=user.id,
+                            date=current_date
+                        ).first()
+                        
+                        if not existing_gap:
+                            # Create snapshot with last known value (forward fill)
+                            gap_snapshot = PortfolioHistory(
+                                user_id=user.id,
+                                date=current_date,
+                                total_value=last_value
+                            )
+                            db.session.add(gap_snapshot)
+                            logger.info(f"Backfilled snapshot for user {user.email} on {current_date}: ${last_value:.2f}")
+                        
+                        current_date += timedelta(days=1)
                 
                 db.session.commit()
             except Exception as e:

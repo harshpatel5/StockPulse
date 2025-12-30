@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   LineChart,
   Line,
@@ -12,6 +12,7 @@ import {
 } from 'recharts';
 import { TrendingUp, BarChart3, Info } from 'lucide-react';
 import { fetchBenchmarkComparison } from '../../services/api';
+import { dedupeRequest } from '../../utils/requestDeduplication';
 
 // Sub-components
 import { InfoModal } from './InfoModal';
@@ -47,17 +48,27 @@ export const BenchmarkChart = ({ token }) => {
   const [hasSP500, setHasSP500] = useState(false);
   const [timeframe, setTimeframe] = useState('all');
   const [showInfo, setShowInfo] = useState(false);
+  const hasFetchedRef = useRef(false);
+  const lastTokenRef = useRef(null);
 
   // Fetch comparison data
   useEffect(() => {
     const fetchData = async () => {
       if (!token) return;
+      
+      // Prevent duplicate calls for the same token
+      if (hasFetchedRef.current && lastTokenRef.current === token) return;
+      hasFetchedRef.current = true;
+      lastTokenRef.current = token;
 
       setLoading(true);
       setError(null);
 
       try {
-        const response = await fetchBenchmarkComparison(token);
+        const response = await dedupeRequest(
+          `fetchBenchmark:${token}`,
+          () => fetchBenchmarkComparison(token)
+        );
         setData(response.data || []);
         setHasSP500(response.has_sp500_data || false);
       } catch (err) {

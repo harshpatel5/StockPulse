@@ -1,8 +1,13 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { fetchAssets, createAsset, deleteAsset, updateHistory, fetchHistory } from '../services/api';
 import { refreshPrices } from '../services/priceService';
 import { DEFAULT_ASSET } from '../constants';
 import { toNumber } from '../utils/formatters';
+import { dedupeRequest } from '../utils/requestDeduplication';
+
+// Module-level tracking to prevent duplicate loads across component instances
+const loadingTokens = new Set();
+const lastLoadTime = new Map();
 
 export const useAssets = (token) => {
   const [assets, setAssets] = useState([]);
@@ -11,27 +16,56 @@ export const useAssets = (token) => {
   const [formAsset, setFormAsset] = useState(DEFAULT_ASSET);
   const [fetchingAssets, setFetchingAssets] = useState(false);
   const [priceWarning, setPriceWarning] = useState(null);
+  const [pricesLoaded, setPricesLoaded] = useState(false);
+  const componentIdRef = useRef(Math.random().toString(36));
 
   // Parallel data loading using Promise.all
   const loadAssets = useCallback(async () => {
     if (!token) return;
-
+    
+    const loadKey = `loadAssets:${token}`;
+    const now = Date.now();
+    const lastLoad = lastLoadTime.get(loadKey) || 0;
+    
+    // Prevent duplicate concurrent calls (within 500ms)
+    if (loadingTokens.has(loadKey) || (now - lastLoad < 500)) {
+      return;
+    }
+    
+    loadingTokens.add(loadKey);
+    lastLoadTime.set(loadKey, now);
     setFetchingAssets(true);
+    setPricesLoaded(false); // Reset prices loaded flag when starting new load
+    
     try {
-      // Step 1: Fetch assets and history in parallel
+      // Step 1: Fetch assets and history in parallel with deduplication
       const [assetsData, historyData] = await Promise.all([
-        fetchAssets(token),
-        fetchHistory(token)
+        dedupeRequest(`fetchAssets:${token}`, () => fetchAssets(token)),
+        dedupeRequest(`fetchHistory:${token}`, () => fetchHistory(token))
       ]);
 
-      // Set initial data immediately
+      // Step 2: Fetch live prices BEFORE setting assets (depends on assets data)
+      // This prevents the UI from rendering with cost basis values first
+      let prices = {};
+      let warning = null;
+      
+      try {
+        const priceData = await refreshPrices(token, assetsData);
+        prices = priceData.prices || {};
+        warning = priceData.warning || null;
+      } catch (priceError) {
+        console.warn('Failed to fetch live prices, using cost basis:', priceError);
+        warning = 'Could not fetch live prices. Using cost basis.';
+        // Continue with empty prices - usePortfolio will fall back to cost basis
+      }
+      
+      // Step 3: Set all data together once prices are loaded (or failed)
+      // This ensures the UI only renders once with the correct values
       setAssets(assetsData);
       setHistory(historyData);
-
-      // Step 2: Fetch live prices (depends on assets data)
-      const { prices, warning } = await refreshPrices(token, assetsData);
       setLivePrices(prices);
       setPriceWarning(warning);
+      setPricesLoaded(true);
 
       // Step 3: Calculate current portfolio value with live prices
       const currentTotalValue = assetsData.reduce((total, asset) => {
@@ -56,6 +90,7 @@ export const useAssets = (token) => {
       throw error;
     } finally {
       setFetchingAssets(false);
+      loadingTokens.delete(loadKey);
     }
   }, [token]);
 
@@ -70,8 +105,10 @@ export const useAssets = (token) => {
       setHistory([]);
       setFormAsset(DEFAULT_ASSET);
       setPriceWarning(null);
+      setPricesLoaded(false);
     }
-  }, [token, loadAssets]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]); // Only depend on token, not loadAssets to avoid circular dependency
 
   const addAsset = async () => {
     if (!token) return;
@@ -143,6 +180,7 @@ export const useAssets = (token) => {
     setFormAsset,
     fetchingAssets,
     priceWarning,
+    pricesLoaded, // Export this so components can show loading state
     loadAssets,
     addAsset,
     removeAsset,
