@@ -94,6 +94,17 @@ jobs:
           ${{ secrets.DOCKER_USERNAME }}/stockpulse-frontend:latest
           ${{ secrets.DOCKER_USERNAME }}/stockpulse-frontend:${{ github.sha }}
     
+    # NEW: Trigger Render deployments after Docker images are pushed
+    - name: Trigger Render Backend Deploy
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      run: |
+        curl -X POST ${{ secrets.RENDER_BACKEND_DEPLOY_HOOK }}
+    
+    - name: Trigger Render Frontend Deploy
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      run: |
+        curl -X POST ${{ secrets.RENDER_FRONTEND_DEPLOY_HOOK }}
+    
     - name: Summary
       run: |
         echo " All CI checks passed!"
@@ -102,3 +113,4 @@ jobs:
         echo " Docker images: BUILT and PUSHED"
         echo " Backend image: ${{ secrets.DOCKER_USERNAME }}/stockpulse-backend:latest"
         echo " Frontend image: ${{ secrets.DOCKER_USERNAME }}/stockpulse-frontend:latest"
+        echo " Render deployments: TRIGGERED"
