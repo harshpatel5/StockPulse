@@ -13,7 +13,7 @@ import { BenchmarkChart } from './components/BenchmarkChart';
 import { AssetForm } from './components/AssetForm';
 import { AssetList } from './components/AssetList';
 import Landing from './pages/Landing';
-
+import { API_BASE_URL } from './constants'; 
 
 // Dashboard component (logged in view)
 const Dashboard = () => {
@@ -221,6 +221,21 @@ const LoginPage = () => {
   return (
     <>
       <Navbar />
+    
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        background: 'yellow',
+        color: 'black',
+        padding: '10px',
+        zIndex: 9999,
+        fontSize: '12px',
+        wordBreak: 'break-all'
+      }}>
+        🔍 API URL: {API_BASE_URL} | ENV: {import.meta.env.MODE} | PROD: {import.meta.env.PROD ? 'YES' : 'NO'}
+      </div>
       <AuthForm
         authMode={authMode}
         setAuthMode={setAuthMode}
