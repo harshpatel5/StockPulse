@@ -15,7 +15,7 @@ COPY index.html vite.config.js ./
 
 # Build arg for API URL (baked into the build)
 # Default to localhost:5000/api for Docker setup
-ARG VITE_API_BASE_URL=http://localhost:5000/api
+ARG VITE_API_BASE_URL=https://stockpulse-backend-niks.onrender.com/api
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 
 # Build the production bundle
