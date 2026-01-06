@@ -94,8 +94,14 @@ class PortfolioHistory(db.Model):
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-   
+    # Relationship
     user = relationship("User", backref="history", lazy=True)
+    
+    # Composite unique constraint and indexes for performance
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'date', name='unique_user_date'),
+        db.Index('idx_user_date', 'user_id', 'date'),  # Composite index for fast queries
+    )
 
     def to_dict(self):
         return {

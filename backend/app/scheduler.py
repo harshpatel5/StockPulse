@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 
 # Finnhub API configuration - update this with your API key
 FINNHUB_KEY = os.getenv('FINNHUB_KEY', '')
+FINNHUB_KEY_PLACEHOLDER = "YOUR_FINNHUB_API_KEY"
 
 # Common crypto symbol to CoinGecko ID mapping
 CRYPTO_ID_MAP = {
@@ -98,7 +99,7 @@ def fetch_live_price(symbol):
     Fetch live price for a symbol using Finnhub API
     Returns the closing price or None if fetch fails
     """
-    if not FINNHUB_KEY or FINNHUB_KEY == "YOUR_FINNHUB_API_KEY":
+    if not FINNHUB_KEY or FINNHUB_KEY == FINNHUB_KEY_PLACEHOLDER:
         return None
     
     try:
@@ -160,81 +161,122 @@ def calculate_user_portfolio_value(user_id):
     return total_value
 
 
-def record_daily_snapshot():
+def is_weekend(target_date):
+    """Check if date is Saturday (5) or Sunday (6)"""
+    return target_date.weekday() >= 5
+
+
+def get_last_weekday_date(target_date=None):
     """
-    Daily scheduled job: Record portfolio value snapshot for each user
-    This runs once per day and creates/updates PortfolioHistory entries
-    Also backfills any missing dates from the last snapshot to today
+    Map weekend dates to Friday.
+    If target_date is Saturday, return Friday.
+    If target_date is Sunday, return Friday.
+    Otherwise return target_date as-is.
+    """
+    from datetime import timedelta
+    
+    if target_date is None:
+        target_date = date.today()
+    
+    weekday = target_date.weekday()
+    if weekday == 5:  # Saturday
+        return target_date - timedelta(days=1)
+    elif weekday == 6:  # Sunday
+        return target_date - timedelta(days=2)
+    else:
+        return target_date
+
+
+def cleanup_old_snapshots(user_id, days=30):
+    """
+    Delete portfolio history snapshots older than specified days.
+    Runs once per day by checking if any records were actually deleted.
+    Returns number of deleted records.
     """
     from datetime import timedelta
     
     try:
-        logger.info("Starting daily portfolio snapshot job...")
-        today = date.today()
+        cutoff_date = date.today() - timedelta(days=days)
         
-        # Get all users
-        users = User.query.all()
+        # Delete old records
+        deleted = PortfolioHistory.query.filter(
+            PortfolioHistory.user_id == user_id,
+            PortfolioHistory.date < cutoff_date
+        ).delete()
         
-        for user in users:
-            try:
-                # Calculate current portfolio value using real live prices
-                total_value = calculate_user_portfolio_value(user.id)
-                
-                # Check if today's snapshot already exists
-                existing = PortfolioHistory.query.filter_by(
-                    user_id=user.id,
-                    date=today
-                ).first()
-                
-                if existing:
-                    # Update existing snapshot with current live prices
-                    existing.total_value = total_value
-                    logger.info(f"Updated snapshot for user {user.email}: ${total_value:.2f}")
-                else:
-                    # Create new snapshot for today
-                    snapshot = PortfolioHistory(
-                        user_id=user.id,
-                        date=today,
-                        total_value=total_value
-                    )
-                    db.session.add(snapshot)
-                    logger.info(f"Created snapshot for user {user.email}: ${total_value:.2f}")
-                
-                # Backfill missing dates between last snapshot and today
-                # This handles cases where the scheduler didn't run for a few days
-                last_snapshot = PortfolioHistory.query.filter_by(
-                    user_id=user.id
-                ).order_by(PortfolioHistory.date.desc()).first()
-                
-                if last_snapshot and last_snapshot.date < today:
-                    # Fill gaps between last snapshot and today
-                    current_date = last_snapshot.date + timedelta(days=1)
-                    last_value = last_snapshot.total_value
-                    
-                    while current_date < today:
-                        # Check if this date already has a snapshot
-                        existing_gap = PortfolioHistory.query.filter_by(
-                            user_id=user.id,
-                            date=current_date
-                        ).first()
-                        
-                        if not existing_gap:
-                            # Create snapshot with last known value (forward fill)
-                            gap_snapshot = PortfolioHistory(
-                                user_id=user.id,
-                                date=current_date,
-                                total_value=last_value
-                            )
-                            db.session.add(gap_snapshot)
-                            logger.info(f"Backfilled snapshot for user {user.email} on {current_date}: ${last_value:.2f}")
-                        
-                        current_date += timedelta(days=1)
-                
-                db.session.commit()
-            except Exception as e:
-                db.session.rollback()
-                logger.error(f"Failed to record snapshot for user {user.email}: {str(e)}")
+        if deleted > 0:
+            db.session.commit()
+            logger.info(f"Cleaned up {deleted} old snapshots for user {user_id}")
         
-        logger.info("Daily portfolio snapshot job completed successfully!")
+        return deleted
     except Exception as e:
-        logger.error(f"Error in daily snapshot job: {str(e)}")
+        db.session.rollback()
+        logger.error(f"Error cleaning up old snapshots: {e}")
+        return 0
+
+
+def generate_portfolio_chart_data(user_id, days=30):
+    """
+    Generate last N days of portfolio chart data from cached snapshots.
+    Forward-fills weekends/holidays with last known value.
+    Returns data from max(30 days ago, first snapshot date) to today.
+    New users with no snapshots get a single point with value 0.
+    """
+    from datetime import timedelta
+    
+    try:
+        # Clean up old snapshots (runs once per day)
+        cleanup_old_snapshots(user_id, days=days)
+        
+        today = date.today()
+        start_date = today - timedelta(days=days)
+        
+        # Get cached snapshots from database (last 30 days)
+        cached_snapshots = PortfolioHistory.query.filter(
+            PortfolioHistory.user_id == user_id,
+            PortfolioHistory.date >= start_date,
+            PortfolioHistory.date <= today
+        ).order_by(PortfolioHistory.date.asc()).all()
+        
+        # If no snapshots, return single point with value 0
+        if not cached_snapshots:
+            return [{
+                "date": today.isoformat(),
+                "total_value": 0
+            }]
+        
+        # Create dictionary of cached values
+        history_dict = {snap.date: snap.total_value for snap in cached_snapshots}
+        
+        # Find first snapshot date (chart starts here)
+        first_snapshot_date = cached_snapshots[0].date
+        chart_start_date = max(first_snapshot_date, start_date)
+        
+        # Generate data for each day with forward-filling
+        chart_data = []
+        current_date = chart_start_date
+        last_known_value = 0
+        
+        while current_date <= today:
+            if current_date in history_dict:
+                # We have a snapshot for this date
+                value = history_dict[current_date]
+                last_known_value = value
+            else:
+                # No snapshot (weekend/holiday/missed day) - forward fill
+                value = last_known_value
+            
+            chart_data.append({
+                "date": current_date.isoformat(),
+                "total_value": value
+            })
+            
+            current_date += timedelta(days=1)
+        
+        return chart_data
+        
+    except Exception as e:
+        logger.error(f"Error generating chart data: {e}")
+        return []
+
+

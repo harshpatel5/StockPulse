@@ -45,7 +45,7 @@ export const HistoryChart = ({ lineSeries }) => {
 
     const cutoffDate = new Date(now.getTime() - daysAgo * 24 * 60 * 60 * 1000);
     return lineSeries.filter((item) => {
-      const itemDate = new Date(item.date);
+      const itemDate = new Date(item.timestamp);
       return itemDate >= cutoffDate;
     });
   }, [lineSeries, timeframe]);
@@ -68,12 +68,12 @@ export const HistoryChart = ({ lineSeries }) => {
   }, [filteredData]);
 
   const timeframeOptions = [
-    { value: '7d', label: '7 days' },
-    { value: '30d', label: '30 days' },
-    { value: '3m', label: '3 months' },
-    { value: '6m', label: '6 months' },
-    { value: '1y', label: '1 year' },
-    { value: 'all', label: 'All time' },
+    { value: '7d', label: '7D' },
+    { value: '30d', label: '1M' },
+    { value: '3m', label: '3M' },
+    { value: '6m', label: '6M' },
+    { value: '1y', label: '1Y' },
+    { value: 'all', label: 'ALL' },
   ];
 
   return (
@@ -101,13 +101,18 @@ export const HistoryChart = ({ lineSeries }) => {
           <LineChart data={filteredData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
             <XAxis 
-              dataKey="date" 
+              dataKey="fullDate" 
               stroke="#94a3b8" 
               tick={{ fill: '#94a3b8', fontSize: 12 }} 
               tickLine={false}
-              angle={filteredData.length > 7 ? -45 : 0}
-              textAnchor={filteredData.length > 7 ? 'end' : 'middle'}
-              height={filteredData.length > 7 ? 60 : 30}
+              angle={-45}
+              textAnchor="end"
+              height={60}
+              tickFormatter={(value) => {
+                const date = new Date(value);
+                return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+              }}
+              interval={filteredData.length <= 7 ? 0 : Math.ceil(filteredData.length / 5)}
             />
             <YAxis 
               stroke="#94a3b8" 
@@ -117,7 +122,10 @@ export const HistoryChart = ({ lineSeries }) => {
             />
             <Tooltip
               formatter={(value) => currency(value)}
-              labelFormatter={(label) => `Date: ${label}`}
+              labelFormatter={(label) => {
+                const date = new Date(label);
+                return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+              }}
               contentStyle={{ 
                 backgroundColor: '#0b1220', 
                 border: '1px solid #243447',

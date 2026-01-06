@@ -100,7 +100,13 @@ export const BenchmarkChart = ({ token }) => {
     const daysAgo = daysMap[timeframe] || 365;
     const cutoffDate = new Date(now.getTime() - daysAgo * 24 * 60 * 60 * 1000);
 
-    return data.filter((item) => new Date(item.date) >= cutoffDate);
+    return data.filter((item) => {
+      const itemDate = new Date(item.date);
+      itemDate.setHours(0, 0, 0, 0);
+      const checkDate = new Date(cutoffDate);
+      checkDate.setHours(0, 0, 0, 0);
+      return itemDate >= checkDate;
+    });
   }, [data, timeframe]);
 
   // Format date for X-axis
@@ -238,7 +244,10 @@ export const BenchmarkChart = ({ token }) => {
               tick={{ fill: '#94a3b8', fontSize: 11 }}
               tickFormatter={formatDate}
               tickLine={false}
-              interval="preserveStartEnd"
+              angle={-45}
+              textAnchor="end"
+              height={60}
+              interval={filteredData.length <= 7 ? 0 : Math.ceil(filteredData.length / 5)}
             />
             <YAxis
               stroke="#94a3b8"

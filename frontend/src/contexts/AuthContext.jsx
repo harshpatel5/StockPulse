@@ -2,22 +2,16 @@ import React, { createContext, useContext, useState, useEffect, useRef } from 'r
 import { login, register, getMe } from '../services/api';
 import { dedupeRequest } from '../utils/requestDeduplication';
 
-// Initialize from localStorage synchronously to prevent flickering
-const getInitialToken = () => localStorage.getItem('token');
-const getInitialUser = () => {
-  const saved = localStorage.getItem('user');
-  return saved ? JSON.parse(saved) : null;
-};
-
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
-  const [token, setToken] = useState(getInitialToken);
-  const [user, setUser] = useState(getInitialUser);
-  const [isValidating, setIsValidating] = useState(true);
+  const [token, setToken] = useState(null);
+  const [user, setUser] = useState(null);
+  const [isValidating, setIsValidating] = useState(false);
   const [authMode, setAuthMode] = useState('login');
   const [credentials, setCredentials] = useState({ email: '', password: '' });
   const hasValidatedRef = useRef(false);
+  const validationRequestedRef = useRef(false);
 
   const handleLogout = () => {
     setToken(null);
@@ -27,17 +21,26 @@ export const AuthProvider = ({ children }) => {
     hasValidatedRef.current = false;
   };
 
-  // Validate token only once on mount
+  // Allow components to request auth validation when needed
+  const triggerValidation = () => {
+    if (!validationRequestedRef.current) {
+      validationRequestedRef.current = true;
+      setIsValidating(true);
+    }
+  };
+
+  // Validate stored token and fetch user data from backend
   useEffect(() => {
-    // Prevent duplicate validation even with StrictMode
-    if (hasValidatedRef.current) return;
+    if (!isValidating || hasValidatedRef.current) return;
     hasValidatedRef.current = true;
     
     let isMounted = true;
-    const initialToken = getInitialToken();
     
     const validateToken = async () => {
-      if (!initialToken) {
+      const storedToken = localStorage.getItem('token');
+      const storedUser = localStorage.getItem('user');
+      
+      if (!storedToken) {
         if (isMounted) {
           setIsValidating(false);
         }
@@ -45,15 +48,33 @@ export const AuthProvider = ({ children }) => {
       }
 
       try {
-        // Use deduplication to prevent multiple calls
+        // Check if token has expired before hitting the backend
+        const payload = JSON.parse(atob(storedToken.split('.')[1]));
+        const expiryTime = payload.exp * 1000;
+        const isExpired = expiryTime <= Date.now();
+        
+        if (isExpired) {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          if (isMounted) {
+            setIsValidating(false);
+          }
+          return;
+        }
+
+        // Token is valid, confirm with backend and get current user data
         const userData = await dedupeRequest('auth:validate', () => getMe());
         if (isMounted && userData) {
-          setUser(userData); // Update user data
+          setToken(storedToken);
+          setUser(userData);
         }
       } catch (error) {
-        // Token is invalid, clear state
+        // Invalid token or network error - clear storage and logout
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
         if (isMounted) {
-          handleLogout();
+          setToken(null);
+          setUser(null);
         }
       } finally {
         if (isMounted) {
@@ -67,32 +88,28 @@ export const AuthProvider = ({ children }) => {
     return () => {
       isMounted = false;
     };
-  }, []); // Only run once on mount
+  }, [isValidating]);
 
+  // Auto logout when token expires
   useEffect(() => {
     if (!token) return;
 
     try {
-      // Decode the JWT to find out when it expires
       const payload = JSON.parse(atob(token.split('.')[1]));
       const expiryTime = payload.exp * 1000; 
       const timeLeft = expiryTime - Date.now();
 
-      // If it's already expired, log out immediately
       if (timeLeft <= 0) {
         handleLogout();
         return;
       }
 
-      // Set the "Alarm Clock" for the future
+      // Set timer to logout when token expires
       const timer = setTimeout(() => {
-        console.log("Session expired!");
         handleLogout();
         window.location.href = '/login?reason=expired';
       }, timeLeft);
 
-      // IMPORTANT: Cleanup function
-      // This stops the old timer if the user logs out or gets a new token
       return () => clearTimeout(timer);
     } catch (e) {
       console.error("Error setting expiry timer", e);
@@ -106,7 +123,6 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem('token', data.token);
     localStorage.setItem('user', JSON.stringify(data.user));
     setCredentials({ email: '', password: '' });
-    // Set isValidating to false since we already have user data from login
     setIsValidating(false);
     return data;
   };
@@ -132,6 +148,7 @@ export const AuthProvider = ({ children }) => {
     handleRegister,
     handleLogout,
     isValidating,
+    triggerValidation,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -144,4 +161,3 @@ export const useAuth = () => {
   }
   return context;
 };
-

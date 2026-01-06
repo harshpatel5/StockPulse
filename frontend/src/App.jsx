@@ -12,16 +12,21 @@ import { HistoryChart } from './components/HistoryChart';
 import { BenchmarkChart } from './components/BenchmarkChart';
 import { AssetForm } from './components/AssetForm';
 import { AssetList } from './components/AssetList';
+import { LoadingSpinner } from './components/LoadingSpinner';
 import Landing from './pages/Landing';
-import { API_BASE_URL } from './constants'; 
+
 
 // Dashboard component (logged in view)
 const Dashboard = () => {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState(null);
 
-  const { token, isAuthenticated, isValidating } = useAuth();
-  
+  const { token, isAuthenticated, isValidating, triggerValidation } = useAuth();
+
+  // Check authentication when component loads
+  useEffect(() => {
+    triggerValidation();
+  }, [triggerValidation]);
 
   const {
     assets,
@@ -80,13 +85,9 @@ const Dashboard = () => {
     }
   };
 
-  // Show loading while validating authentication
+  // Show spinner while validating auth
   if (isValidating) {
-    return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        <div>Loading...</div>
-      </div>
-    );
+    return <LoadingSpinner />;
   }
 
   // Redirect to login if not authenticated
@@ -166,9 +167,14 @@ const LoginPage = () => {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState(null);
   const submittingRef = useRef(false);
-  const { isAuthenticated, isValidating, authMode, setAuthMode, credentials, setCredentials, handleLogin, handleRegister } = useAuth();
+  const { isAuthenticated, isValidating, authMode, setAuthMode, credentials, setCredentials, handleLogin, handleRegister, triggerValidation } = useAuth();
 
-  // Redirect if already authenticated (but wait for validation to complete)
+  // Check if user is already logged in when entering login page
+  useEffect(() => {
+    triggerValidation();
+  }, []);
+
+  // Redirect to dashboard if already authenticated
   useEffect(() => {
     if (!isValidating && isAuthenticated) {
       navigate('/dashboard', { replace: true });
@@ -178,7 +184,7 @@ const LoginPage = () => {
   const handleAuthSubmit = async (event) => {
     event.preventDefault();
     
-    // Prevent duplicate submissions (React StrictMode in dev causes double calls)
+    // Prevent duplicate submissions
     if (submittingRef.current || busy) {
       return;
     }
@@ -190,7 +196,7 @@ const LoginPage = () => {
     try {
       if (authMode === 'login') {
         await handleLogin();
-        // Login successful - useEffect will handle redirect
+        // Redirect happens automatically via useEffect
       } else {
         await handleRegister();
         setMessage({ type: 'success', text: 'Account created. Please sign in.' });
@@ -204,38 +210,19 @@ const LoginPage = () => {
     }
   };
 
-  // Show loading while validating authentication
+  // Show spinner while checking auth status
   if (isValidating) {
-    return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        <div>Loading...</div>
-      </div>
-    );
+    return <LoadingSpinner />;
   }
 
-  // Show loading or redirect if authenticated
+  // Don't show anything while redirecting authenticated users
   if (isAuthenticated) {
-    return null; // Will redirect via useEffect
+    return null;
   }
 
   return (
     <>
       <Navbar />
-    
-      <div style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        background: 'yellow',
-        color: 'black',
-        padding: '10px',
-        zIndex: 9999,
-        fontSize: '12px',
-        wordBreak: 'break-all'
-      }}>
-        🔍 API URL: {API_BASE_URL} | ENV: {import.meta.env.MODE} | PROD: {import.meta.env.PROD ? 'YES' : 'NO'}
-      </div>
       <AuthForm
         authMode={authMode}
         setAuthMode={setAuthMode}

@@ -6,10 +6,18 @@ from app.auth import generate_token, token_required
 from app.models import db, User, Asset, PortfolioHistory
 from app.config import Config
 from sqlalchemy import exc
-from datetime import date, datetime
-from apscheduler.schedulers.background import BackgroundScheduler
-from app.scheduler import record_daily_snapshot, fetch_live_price, fetch_crypto_price, search_crypto, calculate_user_portfolio_value, FINNHUB_KEY
-import requests, jwt
+from datetime import date, datetime, timedelta
+from app.scheduler import (
+    fetch_live_price, 
+    fetch_crypto_price, 
+    search_crypto, 
+    calculate_user_portfolio_value, 
+    generate_portfolio_chart_data,
+    get_last_weekday_date,
+    FINNHUB_KEY,
+    FINNHUB_KEY_PLACEHOLDER
+)
+import requests
 import os
 import logging
 
@@ -46,39 +54,18 @@ def create_app(config_class=Config):
         db.create_all()
         print(" Database tables created successfully!")
         
-        # Configure logging for scheduler
+        # Configure logging
         logging.basicConfig(level=logging.INFO)
-        
-        # Initialize and start the APScheduler for daily snapshots
-        scheduler = BackgroundScheduler()
-        
-        # PRODUCTION: Schedule the daily snapshot job to run at 2 AM daily
-        scheduler.add_job(
-            func=record_daily_snapshot,
-            trigger="cron",
-            hour=2,
-            minute=0,
-            id='daily_portfolio_snapshot',
-            name='Record daily portfolio snapshots for all users',
-            replace_existing=True,
-            max_instances=1
-        )
-        
-        # TEST/DEVELOPMENT: Uncomment below to test - runs every 1 minute
-        # scheduler.add_job(
-        #     func=record_daily_snapshot,
-        #     trigger="interval",
-        #     minutes=1,
-        #     id='test_portfolio_snapshot',
-        #     name='TEST: Record portfolio snapshots every minute',
-        #     replace_existing=True,
-        #     max_instances=1
-        # )
-        
-        # Start the scheduler
-        if not scheduler.running:
-            scheduler.start()
-            print("APScheduler initialized - Daily snapshots enabled!")
+        print(" On-demand chart generation enabled!")
+    
+    # -------------------------------------------------------------------------
+    # HELPER FUNCTIONS
+    # -------------------------------------------------------------------------
+    def check_finnhub_key():
+        """Check if Finnhub API key is configured. Returns (is_valid, error_response)"""
+        if not FINNHUB_KEY or FINNHUB_KEY == FINNHUB_KEY_PLACEHOLDER:
+            return False, {"message": "Finnhub API key not configured on server"}
+        return True, None
     
     # -------------------------------------------------------------------------
     # HEALTH CHECK ROUTE
@@ -302,18 +289,20 @@ def create_app(config_class=Config):
         Record today's total portfolio value for the user.
         Accepts total_value from frontend (calculated with live prices).
         If not provided, falls back to cost_basis calculation.
+        Weekend requests are mapped to Friday's date.
         """
         try:
-            today = date.today()
+            # Map weekends to Friday
+            today = get_last_weekday_date(date.today())
             data = request.get_json() or {}
             
             # Use provided total_value from frontend (calculated with live prices)
-            # If not provided, fall back to cost_basis calculation
+            # If not provided, fall back to live price calculation
             if 'total_value' in data:
                 total_value = float(data['total_value'])
             else:
-                # Fallback: calculate from cost_basis (for backwards compatibility)
-                total_value = compute_user_total_value(current_user.id)
+                # Fallback: calculate using live prices
+                total_value = calculate_user_portfolio_value(current_user.id)
 
             # Check if today's history exists
             history = PortfolioHistory.query.filter_by(
@@ -352,73 +341,24 @@ def create_app(config_class=Config):
     @token_required
     def get_history(current_user):
         """
-        Return the user's portfolio history sorted by date.
-        Automatically backfills missing dates to ensure consistent charting.
+        Return 30 days of portfolio history with on-demand generation.
+        Uses cached snapshots when available, calculates missing dates automatically.
+        Handles weekends/holidays gracefully. Works for stocks, ETF, and crypto.
         """
         try:
-            from datetime import timedelta
+            # Get query parameter for custom days (default 30)
+            days = request.args.get('days', 30, type=int)
             
-            history = PortfolioHistory.query.filter_by(
-                user_id=current_user.id
-            ).order_by(PortfolioHistory.date.asc()).all()
-
-            if not history:
-                return jsonify([]), 200
-
-            # Get date range
-            first_date = min(h.date for h in history)
-            today = date.today()
+            # Limit to reasonable range
+            if days < 1:
+                days = 30
+            elif days > 365:
+                days = 365
             
-            # Create a dictionary for quick lookup
-            history_dict = {h.date: h.total_value for h in history}
+            # Generate chart data on-demand
+            chart_data = generate_portfolio_chart_data(current_user.id, days=days)
             
-            # Backfill missing dates between first date and today
-            # Use last known value for missing dates (forward fill)
-            backfilled_history = []
-            current_date = first_date
-            last_known_value = history_dict.get(current_date, 0.0)
-            
-            while current_date <= today:
-                if current_date in history_dict:
-                    # Use actual recorded value
-                    last_known_value = history_dict[current_date]
-                    backfilled_history.append({
-                        "date": current_date.isoformat(),
-                        "total_value": last_known_value
-                    })
-                else:
-                    # Backfill missing date with last known value
-                    # This ensures consistent charting even if scheduler missed days
-                    backfilled_history.append({
-                        "date": current_date.isoformat(),
-                        "total_value": last_known_value
-                    })
-                
-                current_date += timedelta(days=1)
-            
-            # Ensure today's snapshot exists (create if missing)
-            if today not in history_dict:
-                try:
-                    # Calculate current portfolio value
-                    total_value = calculate_user_portfolio_value(current_user.id)
-                    
-                    # Create snapshot for today
-                    snapshot = PortfolioHistory(
-                        user_id=current_user.id,
-                        date=today,
-                        total_value=total_value
-                    )
-                    db.session.add(snapshot)
-                    db.session.commit()
-                    
-                    # Update the backfilled history with actual value
-                    backfilled_history[-1]["total_value"] = total_value
-                    logger.info(f"Created missing snapshot for user {current_user.id} on {today}")
-                except Exception as e:
-                    logger.warning(f"Failed to create today's snapshot: {str(e)}")
-                    # Use last known value if calculation fails
-            
-            return jsonify(backfilled_history), 200
+            return jsonify(chart_data), 200
 
         except Exception as e:
             logger.error(f"Error fetching history: {str(e)}")
@@ -442,11 +382,10 @@ def create_app(config_class=Config):
             
             symbol = symbol.strip().upper()
             
-            if not FINNHUB_KEY or FINNHUB_KEY == "YOUR_FINNHUB_API_KEY":
-                return jsonify({
-                    "message": "Finnhub API key not configured on server",
-                    "price": None
-                }), 200
+            is_valid, error = check_finnhub_key()
+            if not is_valid:
+                error["price"] = None
+                return jsonify(error), 200
             
             price = fetch_live_price(symbol)
             
@@ -477,11 +416,10 @@ def create_app(config_class=Config):
             if len(symbols) > 20:
                 return jsonify({"message": "Maximum 20 symbols per request"}), 400
             
-            if not FINNHUB_KEY or FINNHUB_KEY == "YOUR_FINNHUB_API_KEY":
-                return jsonify({
-                    "message": "Finnhub API key not configured on server",
-                    "prices": {}
-                }), 200
+            is_valid, error = check_finnhub_key()
+            if not is_valid:
+                error["prices"] = {}
+                return jsonify(error), 200
             
             prices = {}
             for symbol in symbols:
@@ -512,11 +450,10 @@ def create_app(config_class=Config):
             if not query or len(query) < 2:
                 return jsonify({"results": []}), 200
             
-            if not FINNHUB_KEY or FINNHUB_KEY == "YOUR_FINNHUB_API_KEY":
-                return jsonify({
-                    "message": "Finnhub API key not configured on server",
-                    "results": []
-                }), 200
+            is_valid, error = check_finnhub_key()
+            if not is_valid:
+                error["results"] = []
+                return jsonify(error), 200
             
             url = f"https://finnhub.io/api/v1/search?q={query}&token={FINNHUB_KEY}"
             response = requests.get(url, timeout=5)
@@ -842,6 +779,39 @@ def create_app(config_class=Config):
                 elif last_spy is not None:
                     item["sp500"] = last_spy
             
+            # Backfill missing dates between first and last history entry
+            if comparison_data:
+                from datetime import timedelta
+                
+                backfilled_data = []
+                current_date = start_date
+                comparison_dict = {d["date"]: d for d in comparison_data}
+                last_values = {"portfolio": None, "sp500": None}
+                
+                while current_date <= end_date:
+                    date_str = current_date.strftime('%Y-%m-%d')
+                    
+                    if date_str in comparison_dict:
+                        # Use actual data point
+                        item = comparison_dict[date_str]
+                        last_values["portfolio"] = item["portfolio"]
+                        if item["sp500"] is not None:
+                            last_values["sp500"] = item["sp500"]
+                        backfilled_data.append(item)
+                    else:
+                        # Backfill with last known values
+                        if last_values["portfolio"] is not None:
+                            backfilled_data.append({
+                                "date": date_str,
+                                "portfolio": last_values["portfolio"],
+                                "sp500": last_values["sp500"],
+                                "portfolioValue": None  # Not available for backfilled dates
+                            })
+                    
+                    current_date += timedelta(days=1)
+                
+                comparison_data = backfilled_data
+            
             return jsonify({
                 "data": comparison_data,
                 "start_date": start_date.isoformat(),
@@ -867,19 +837,6 @@ def create_app(config_class=Config):
         return jsonify({"message": "Internal server error"}), 500
     
     return app
-
-def compute_user_total_value(user_id):
-    """Calculates the user's current total portfolio value."""
-    assets = Asset.query.filter_by(user_id=user_id).all()
-    if not assets:
-        return 0.0
-
-    total = 0.0
-    for a in assets:
-        # Using cost_basis for now; can replace with live prices later
-        total += a.cost_basis
-
-    return total
 
 # Run the app (for development)
 if __name__ == '__main__':
