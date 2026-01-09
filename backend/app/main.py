@@ -20,6 +20,7 @@ from app.scheduler import (
 import requests
 import os
 import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # Set up logger for this module
 logger = logging.getLogger(__name__)
@@ -422,11 +423,24 @@ def create_app(config_class=Config):
                 return jsonify(error), 200
             
             prices = {}
-            for symbol in symbols:
-                symbol = symbol.strip().upper()
-                price = fetch_live_price(symbol)
-                if price is not None:
-                    prices[symbol] = price
+            
+            # Use ThreadPoolExecutor to fetch prices in parallel (max 5 workers)
+            with ThreadPoolExecutor(max_workers=5) as executor:
+                # Submit all price fetch tasks
+                future_to_symbol = {
+                    executor.submit(fetch_live_price, symbol.strip().upper()): symbol.strip().upper()
+                    for symbol in symbols
+                }
+                
+                # Collect results as they complete
+                for future in as_completed(future_to_symbol):
+                    symbol = future_to_symbol[future]
+                    try:
+                        price = future.result()
+                        if price is not None:
+                            prices[symbol] = price
+                    except Exception as e:
+                        logger.error(f"Error fetching price for {symbol}: {str(e)}")
             
             return jsonify({
                 "prices": prices,
