@@ -21,20 +21,22 @@ const parseResponse = async (response) => {
 };
 
 // Helper function to handle API calls with proper error handling
-const apiCall = async (url, options = {}) => {
+const apiCall = async (url, options = {}, skipAuthRedirect = false) => {
   try {
     const response = await fetch(url, options);
     
     // Parse response (will throw if not JSON)
     const data = await parseResponse(response);
     
-    if (response.status === 401) {
+    // Only auto-redirect on 401 for authenticated endpoints (not login/register)
+    if (response.status === 401 && !skipAuthRedirect) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       
       window.location.href = '/login';
       throw new Error('Session expired. Please log in again.');
     }
+    
     // Check HTTP status
     if (!response.ok) {
       throw new Error(data?.message || `Request failed with status ${response.status}`);
@@ -56,7 +58,7 @@ export const login = async (credentials) => {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(credentials),
-  });
+  }, true); // Skip auth redirect for login endpoint
 };
 
 export const register = async (credentials) => {
@@ -64,7 +66,7 @@ export const register = async (credentials) => {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(credentials),
-  });
+  }, true); // Skip auth redirect for register endpoint
 };
 
 // Assets API
