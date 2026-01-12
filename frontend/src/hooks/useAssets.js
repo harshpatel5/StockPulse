@@ -38,28 +38,26 @@ export const useAssets = (token) => {
     setPricesLoaded(false); // Reset prices loaded flag when starting new load
     
     try {
-      // Step 1: Fetch assets and history in parallel with deduplication
-      const [assetsData, historyData] = await Promise.all([
-        dedupeRequest(`fetchAssets:${token}`, () => fetchAssets(token)),
-        dedupeRequest(`fetchHistory:${token}`, () => fetchHistory(token))
+      // Step 1: Fetch assets first to get symbols for price fetching
+      const assetsData = await dedupeRequest(`fetchAssets:${token}`, () => fetchAssets(token));
+
+      // Step 2: Fetch history and prices in parallel (prices depend on assets data)
+      const [historyData, priceData] = await Promise.all([
+        dedupeRequest(`fetchHistory:${token}`, () => fetchHistory(token)),
+        (async () => {
+          try {
+            return await refreshPrices(token, assetsData);
+          } catch (priceError) {
+            console.warn('Failed to fetch live prices, using cost basis:', priceError);
+            return { prices: {}, warning: 'Could not fetch live prices. Using cost basis.' };
+          }
+        })()
       ]);
 
-      // Step 2: Fetch live prices BEFORE setting assets (depends on assets data)
-      // This prevents the UI from rendering with cost basis values first
-      let prices = {};
-      let warning = null;
+      const prices = priceData.prices || {};
+      const warning = priceData.warning || null;
       
-      try {
-        const priceData = await refreshPrices(token, assetsData);
-        prices = priceData.prices || {};
-        warning = priceData.warning || null;
-      } catch (priceError) {
-        console.warn('Failed to fetch live prices, using cost basis:', priceError);
-        warning = 'Could not fetch live prices. Using cost basis.';
-        // Continue with empty prices - usePortfolio will fall back to cost basis
-      }
-      
-      // Step 3: Set all data together once prices are loaded (or failed)
+      // Step 3: Set all data together once everything is loaded
       // This ensures the UI only renders once with the correct values
       setAssets(assetsData);
       setHistory(historyData);
@@ -67,7 +65,7 @@ export const useAssets = (token) => {
       setPriceWarning(warning);
       setPricesLoaded(true);
 
-      // Step 3: Calculate current portfolio value with live prices
+      // Step 4: Calculate current portfolio value with live prices
       const currentTotalValue = assetsData.reduce((total, asset) => {
         const quantity = toNumber(asset.quantity);
         const costBasis = toNumber(asset.cost_basis ?? asset.costBasis);
@@ -78,7 +76,7 @@ export const useAssets = (token) => {
         return total + currentValue;
       }, 0);
 
-      // Step 4: Update history with calculated total value
+      // Step 5: Update history with calculated total value
       // This is fire-and-forget to avoid blocking UI
       updateHistory(token, currentTotalValue)
         .then(() => fetchHistory(token))
