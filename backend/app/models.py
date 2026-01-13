@@ -1,42 +1,39 @@
+# Import required libraries
 from flask_sqlalchemy import SQLAlchemy
 from passlib.context import CryptContext
 from datetime import datetime
 from sqlalchemy.orm import relationship
 
-# Initialize SQLAlchemy (configured in main.py)
+# Database instance (configured in main.py)
 db = SQLAlchemy()
 
-# Password hashing configuration using bcrypt
-# bcrypt is industry-standard for password security
+# Password hashing setup using bcrypt (industry standard)
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 class User(db.Model):
-    """
-    User model - represents registered users
-    Each user can have multiple assets (one-to-many relationship)
-    """
+    """User table - stores user accounts"""
     __tablename__ = 'users'
     
+    # Table columns
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(120), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(255), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
-    # Relationship: One user has many assets
-    # 'cascade' means when user is deleted, their assets are deleted too
+    # One user can have many assets
     assets = relationship("Asset", backref="owner", lazy=True, cascade="all, delete-orphan")
     
     def hash_password(self, password):
-        """Hash a plain-text password using bcrypt"""
+        """Converts plain password to secure hash"""
         self.password_hash = pwd_context.hash(password)
     
     def verify_password(self, password):
-        """Check if provided password matches the hash"""
+        """Checks if password matches stored hash"""
         return pwd_context.verify(password, self.password_hash)
     
     def to_dict(self):
-        """Convert user object to dictionary (for API responses)"""
+        """Converts user data to JSON format"""
         return {
             'id': self.id,
             'email': self.email,
@@ -48,22 +45,20 @@ class User(db.Model):
 
 
 class Asset(db.Model):
-    """
-    Asset model - represents investments (stocks, crypto, etc.)
-    Each asset belongs to one user (many-to-one relationship)
-    """
+    """Asset table - stores stocks, crypto, ETFs"""
     __tablename__ = 'assets'
     
+    # Table columns
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)  # e.g., 'AAPL', 'Bitcoin'
-    asset_type = db.Column(db.String(50), nullable=False)  # e.g., 'Stock', 'Crypto'
-    quantity = db.Column(db.Float, nullable=False)  # Number of units
-    cost_basis = db.Column(db.Float, nullable=False)  # Total purchase price
+    name = db.Column(db.String(100), nullable=False)  # Symbol (e.g., 'AAPL')
+    asset_type = db.Column(db.String(50), nullable=False)  # Type (Stock, Crypto, ETF)
+    quantity = db.Column(db.Float, nullable=False)  # How many shares/coins
+    cost_basis = db.Column(db.Float, nullable=False)  # Total amount paid
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     def to_dict(self):
-        """Convert asset object to dictionary (for API responses)"""
+        """Converts asset data to JSON format"""
         return {
             'id': self.id,
             'name': self.name,
@@ -78,29 +73,23 @@ class Asset(db.Model):
 
 
 class PortfolioHistory(db.Model):
-    """
-    Stores the total portfolio value for each user per day.
-    One entry per (user_id, date).
-    """
+    """Portfolio History table - stores daily portfolio snapshots"""
     __tablename__ = "portfolio_history"
 
+    # Table columns
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-
-    # Store date without time for clean charting
-    date = db.Column(db.Date, nullable=False, index=True)
-
-    total_value = db.Column(db.Float, nullable=False)
-
+    date = db.Column(db.Date, nullable=False, index=True)  # Date of snapshot
+    total_value = db.Column(db.Float, nullable=False)  # Portfolio value on that date
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    # Relationship
+    # Link back to user
     user = relationship("User", backref="history", lazy=True)
     
-    # Composite unique constraint and indexes for performance
+    # Prevent duplicate entries for same user and date
     __table_args__ = (
         db.UniqueConstraint('user_id', 'date', name='unique_user_date'),
-        db.Index('idx_user_date', 'user_id', 'date'),  # Composite index for fast queries
+        db.Index('idx_user_date', 'user_id', 'date'),  # Speed up queries
     )
 
     def to_dict(self):

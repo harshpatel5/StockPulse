@@ -1,7 +1,8 @@
 """
-Scheduled jobs for StockPulse backend
-Handles daily portfolio value snapshots for all users
+Price fetching and portfolio calculations
+Handles API calls to Finnhub (stocks) and CoinGecko (crypto)
 """
+# Import required libraries
 from datetime import date
 from app.models import db, User, Asset, PortfolioHistory
 import requests
@@ -10,11 +11,11 @@ import os
 
 logger = logging.getLogger(__name__)
 
-# Finnhub API configuration - update this with your API key
+# Get API key from environment variables
 FINNHUB_KEY = os.getenv('FINNHUB_KEY', '')
 FINNHUB_KEY_PLACEHOLDER = "YOUR_FINNHUB_API_KEY"
 
-# Common crypto symbol to CoinGecko ID mapping
+# Map crypto symbols to CoinGecko IDs
 CRYPTO_ID_MAP = {
     'BTC': 'bitcoin',
     'ETH': 'ethereum',
@@ -39,17 +40,60 @@ CRYPTO_ID_MAP = {
 }
 
 
-def fetch_crypto_price(symbol):
-    """
-    Fetch crypto price using CoinGecko API (free, no key required)
-    Returns price in USD or None if fetch fails
-    """
-    symbol = symbol.upper().strip()
-    coin_id = CRYPTO_ID_MAP.get(symbol)
+# =========================================================================
+# CACHING SYSTEM - Reduces API calls
+# =========================================================================
+
+class SimpleCache:
+    """Cache to store prices temporarily (60 seconds)"""
+    def __init__(self):
+        self._cache = {}
     
+    def get(self, key):
+        """Check if we have a cached price that's still valid"""
+        from datetime import datetime
+        if key in self._cache:
+            value, expiry = self._cache[key]
+            if datetime.now() < expiry:
+                return value
+            # Price is old, remove it
+            del self._cache[key]
+        return None
+    
+    def set(self, key, value, ttl_seconds=60):
+        """Store price in cache for 60 seconds"""
+        from datetime import datetime, timedelta
+        expiry = datetime.now() + timedelta(seconds=ttl_seconds)
+        self._cache[key] = (value, expiry)
+    
+    def clear(self):
+        """Delete all cached prices"""
+        self._cache.clear()
+    
+    def size(self):
+        """Count how many prices are cached"""
+        return len(self._cache)
+
+
+# Create cache instance
+_price_cache = SimpleCache()
+
+
+def fetch_crypto_price(symbol):
+    """Get crypto price from CoinGecko API (free, no key needed)"""
+    symbol = symbol.upper().strip()
+    
+    # Check cache first (avoids API call)
+    cache_key = f"crypto:{symbol}"
+    cached_price = _price_cache.get(cache_key)
+    if cached_price is not None:
+        logger.debug(f"Cache hit for {symbol}: ${cached_price}")
+        return cached_price
+    
+    # Get CoinGecko ID (e.g., 'BTC' → 'bitcoin')
+    coin_id = CRYPTO_ID_MAP.get(symbol)
     if not coin_id:
-        # Try using symbol as coin_id directly (lowercase)
-        coin_id = symbol.lower()
+        coin_id = symbol.lower()  # Try symbol directly
     
     try:
         url = f"https://api.coingecko.com/api/v3/simple/price?ids={coin_id}&vs_currencies=usd"
@@ -58,7 +102,10 @@ def fetch_crypto_price(symbol):
         
         data = response.json()
         if data and coin_id in data and 'usd' in data[coin_id]:
-            return data[coin_id]['usd']
+            price = data[coin_id]['usd']
+            _price_cache.set(cache_key, price, ttl_seconds=60)  # Cache for 60 sec
+            logger.debug(f"Fetched and cached {symbol}: ${price}")
+            return price
         return None
     except Exception as e:
         logger.warning(f"Failed to fetch crypto price for {symbol}: {str(e)}")
@@ -66,10 +113,7 @@ def fetch_crypto_price(symbol):
 
 
 def search_crypto(query):
-    """
-    Search for cryptocurrencies using CoinGecko API
-    Returns list of matching coins
-    """
+    """Search for crypto coins on CoinGecko (returns top 10 matches)"""
     try:
         url = f"https://api.coingecko.com/api/v3/search?query={query}"
         response = requests.get(url, timeout=5)
@@ -79,7 +123,7 @@ def search_crypto(query):
         results = []
         
         if data and 'coins' in data:
-            for coin in data['coins'][:10]:
+            for coin in data['coins'][:10]:  # Only top 10 results
                 results.append({
                     "symbol": coin.get('symbol', '').upper(),
                     "description": coin.get('name', ''),
@@ -95,10 +139,15 @@ def search_crypto(query):
 
 
 def fetch_live_price(symbol):
-    """
-    Fetch live price for a symbol using Finnhub API
-    Returns the closing price or None if fetch fails
-    """
+    """Get stock price from Finnhub API (requires API key)"""
+    # Check cache first (avoids API call)
+    cache_key = f"stock:{symbol}"
+    cached_price = _price_cache.get(cache_key)
+    if cached_price is not None:
+        logger.debug(f"Cache hit for {symbol}: ${cached_price}")
+        return cached_price
+    
+    # No API key configured
     if not FINNHUB_KEY or FINNHUB_KEY == FINNHUB_KEY_PLACEHOLDER:
         return None
     
@@ -108,9 +157,11 @@ def fetch_live_price(symbol):
         response.raise_for_status()
         
         data = response.json()
-        if data and 'c' in data:
+        if data and 'c' in data:  # 'c' = current price
             price = data['c']
             if isinstance(price, (int, float)) and price > 0:
+                _price_cache.set(cache_key, price, ttl_seconds=60)  # Cache for 60 sec
+                logger.debug(f"Fetched and cached {symbol}: ${price}")
                 return price
         return None
     except Exception as e:
@@ -119,10 +170,7 @@ def fetch_live_price(symbol):
 
 
 def calculate_user_portfolio_value(user_id):
-    """
-    Calculate total portfolio value for a user using live prices
-    Falls back to cost_basis if live price unavailable
-    """
+    """Calculate total portfolio value using live prices (fallback to cost_basis if unavailable)"""
     assets = Asset.query.filter_by(user_id=user_id).all()
     
     if not assets:
@@ -134,18 +182,16 @@ def calculate_user_portfolio_value(user_id):
         quantity = float(asset.quantity)
         asset_type = (asset.asset_type or 'stock').lower()
         
-        # Try to get live price based on asset type
+        # Try to get live price based on type
         if asset_type in ['stock', 'etf']:
-            # Stock and ETF both use Finnhub
             live_price = fetch_live_price(asset.name.strip().upper())
             if live_price:
                 current_value = live_price * quantity
             else:
-                # Fallback to average cost if live price unavailable
+                # Use cost_basis if API fails
                 average_cost = float(asset.cost_basis) / quantity if quantity > 0 else 0
                 current_value = average_cost * quantity
         elif asset_type == 'crypto':
-            # Crypto uses CoinGecko
             live_price = fetch_crypto_price(asset.name.strip().upper())
             if live_price:
                 current_value = live_price * quantity
@@ -153,7 +199,7 @@ def calculate_user_portfolio_value(user_id):
                 average_cost = float(asset.cost_basis) / quantity if quantity > 0 else 0
                 current_value = average_cost * quantity
         else:
-            # Fallback for unknown types
+            # Unknown type - use cost_basis
             current_value = float(asset.cost_basis)
         
         total_value += current_value
@@ -167,12 +213,7 @@ def is_weekend(target_date):
 
 
 def get_last_weekday_date(target_date=None):
-    """
-    Map weekend dates to Friday.
-    If target_date is Saturday, return Friday.
-    If target_date is Sunday, return Friday.
-    Otherwise return target_date as-is.
-    """
+    """Map weekends to Friday (e.g., Sat/Sun → Fri)"""
     from datetime import timedelta
     
     if target_date is None:
@@ -188,17 +229,13 @@ def get_last_weekday_date(target_date=None):
 
 
 def cleanup_old_snapshots(user_id, days=30):
-    """
-    Delete portfolio history snapshots older than specified days.
-    Runs once per day by checking if any records were actually deleted.
-    Returns number of deleted records.
-    """
+    """Delete portfolio snapshots older than X days (default 30)"""
     from datetime import timedelta
     
     try:
         cutoff_date = date.today() - timedelta(days=days)
         
-        # Delete old records
+        # Delete old snapshots
         deleted = PortfolioHistory.query.filter(
             PortfolioHistory.user_id == user_id,
             PortfolioHistory.date < cutoff_date
@@ -217,54 +254,47 @@ def cleanup_old_snapshots(user_id, days=30):
 
 def generate_portfolio_chart_data(user_id, days=30):
     """
-    Generate last N days of portfolio chart data from cached snapshots.
-    Forward-fills weekends/holidays with last known value.
-    Returns data from max(30 days ago, first snapshot date) to today.
-    New users with no snapshots get a single point with value 0.
+    Generate chart data from DB snapshots (last 30 days).
+    Forward-fills missing days with last known value.
     """
     from datetime import timedelta
     
     try:
-        # Clean up old snapshots (runs once per day)
+        # Delete old snapshots first
         cleanup_old_snapshots(user_id, days=days)
         
         today = date.today()
         start_date = today - timedelta(days=days)
         
-        # Get cached snapshots from database (last 30 days)
+        # Get snapshots from DB
         cached_snapshots = PortfolioHistory.query.filter(
             PortfolioHistory.user_id == user_id,
             PortfolioHistory.date >= start_date,
             PortfolioHistory.date <= today
         ).order_by(PortfolioHistory.date.asc()).all()
         
-        # If no snapshots, return single point with value 0
+        # New user with no history
         if not cached_snapshots:
-            return [{
-                "date": today.isoformat(),
-                "total_value": 0
-            }]
+            return [{"date": today.isoformat(), "total_value": 0}]
         
-        # Create dictionary of cached values
+        # Build dictionary of dates → values
         history_dict = {snap.date: snap.total_value for snap in cached_snapshots}
         
-        # Find first snapshot date (chart starts here)
+        # Chart starts at first snapshot (or 30 days ago, whichever is later)
         first_snapshot_date = cached_snapshots[0].date
         chart_start_date = max(first_snapshot_date, start_date)
         
-        # Generate data for each day with forward-filling
+        # Fill in all days with forward-filling
         chart_data = []
         current_date = chart_start_date
         last_known_value = 0
         
         while current_date <= today:
             if current_date in history_dict:
-                # We have a snapshot for this date
-                value = history_dict[current_date]
+                value = history_dict[current_date]  # Real snapshot
                 last_known_value = value
             else:
-                # No snapshot (weekend/holiday/missed day) - forward fill
-                value = last_known_value
+                value = last_known_value  # Forward-fill missing day
             
             chart_data.append({
                 "date": current_date.isoformat(),

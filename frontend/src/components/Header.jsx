@@ -1,6 +1,7 @@
 import React from 'react';
 import { RefreshCw } from 'lucide-react';
 
+// Header with refresh button to reload assets
 export const Header = ({ onRefresh, fetchingAssets }) => {
   return (
     <header className="page-header">

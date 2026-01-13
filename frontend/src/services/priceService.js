@@ -1,7 +1,4 @@
-/**
- * Price Service - All price data fetched via backend proxy
- * API keys are NEVER exposed to the frontend
- */
+// Price Service - All API calls proxied through backend (API keys never exposed)
 import { 
   fetchQuote, 
   fetchBatchQuotes, 
@@ -11,9 +8,7 @@ import {
 } from './api';
 import { dedupeRequest } from '../utils/requestDeduplication';
 
-/**
- * Fetch live price for a single stock symbol via backend
- */
+// Fetch live price for one stock symbol
 export const fetchPriceForSymbol = async (token, symbol) => {
   if (!token) {
     console.warn('No auth token; skip live quote.');
@@ -29,9 +24,7 @@ export const fetchPriceForSymbol = async (token, symbol) => {
   }
 };
 
-/**
- * Fetch live price for a single crypto symbol via backend
- */
+// Fetch live price for one crypto symbol
 export const fetchCryptoPriceForSymbol = async (token, symbol) => {
   if (!token) {
     console.warn('No auth token; skip crypto quote.');
@@ -47,13 +40,11 @@ export const fetchCryptoPriceForSymbol = async (token, symbol) => {
   }
 };
 
-/**
- * Refresh prices for all assets (stocks, ETFs, and crypto) via backend
- */
+// Fetch live prices for all assets (stocks, ETFs, crypto)
 export const refreshPrices = async (token, assetList = []) => {
   const list = Array.isArray(assetList) ? assetList : [];
   
-  // Stocks and ETFs both use Finnhub API
+  // Separate stocks/ETFs (Finnhub) from crypto (CoinGecko)
   const stocksAndETFs = list.filter((asset) => {
     const normalizedType = asset.type ? asset.type.toLowerCase().trim() : '';
     return normalizedType === 'stock' || normalizedType === 'etf';
@@ -69,16 +60,13 @@ export const refreshPrices = async (token, assetList = []) => {
   }
 
   if (!token) {
-    return {
-      prices: {},
-      warning: 'Please log in to fetch live prices.',
-    };
+    return { prices: {}, warning: 'Please log in to fetch live prices.' };
   }
 
   const prices = {};
   let hasError = false;
 
-  // Fetch stock and ETF prices (both use Finnhub)
+  // Batch fetch stocks/ETFs (Finnhub API)
   if (stocksAndETFs.length) {
     try {
       const symbols = stocksAndETFs.map((asset) => asset.name.trim().toUpperCase());
@@ -86,7 +74,7 @@ export const refreshPrices = async (token, assetList = []) => {
       const data = await dedupeRequest(
         `fetchBatchQuotes:${token}:${symbolsKey}`,
         () => fetchBatchQuotes(token, symbols),
-        1000 // 1 second dedupe window for price calls
+        1000  // 1-second dedupe window
       );
       Object.assign(prices, data?.prices || {});
     } catch (error) {
@@ -95,7 +83,7 @@ export const refreshPrices = async (token, assetList = []) => {
     }
   }
 
-  // Fetch crypto prices (one by one since CoinGecko doesn't have batch)
+  // Fetch crypto prices individually (CoinGecko has no batch endpoint)
   if (cryptos.length) {
     const cryptoPrices = await Promise.all(
       cryptos.map(async (asset) => {

@@ -6,10 +6,7 @@ from app.models import User
 
 
 def generate_token(user_id):
-    """
-    Create a JWT token for authenticated user
-    Token contains user_id and expiration time
-    """
+    """Create JWT token with 24-hour expiration"""
     expiration_hours = current_app.config.get('JWT_EXPIRATION_HOURS', 24)
     payload = {
         'user_id': user_id,
@@ -28,20 +25,14 @@ def generate_token(user_id):
 
 def token_required(f):
     """
-    Decorator to protect routes that require authentication
-    Usage: @token_required above any route function
-    
-    HOW IT WORKS:
-    1. Extracts token from 'Authorization: Bearer <token>' header
-    2. Verifies token signature and expiration
-    3. Loads user from database
-    4. Passes user to the route function
+    Decorator to protect routes (checks JWT token in Authorization header)
+    Usage: @token_required above route function
     """
     @wraps(f)
     def decorated(*args, **kwargs):
         token = None
         
-        # Get token from Authorization header
+        # Extract token from 'Authorization: Bearer <token>' header
         if 'Authorization' in request.headers:
             auth_header = request.headers['Authorization']
             if auth_header.startswith('Bearer '):
@@ -51,14 +42,14 @@ def token_required(f):
             return jsonify({'message': 'Authentication token is missing'}), 401
         
         try:
-            # Decode and verify token
+            # Verify token signature and expiration
             data = jwt.decode(
                 token,
                 current_app.config['SECRET_KEY'],
                 algorithms=["HS256"]
             )
             
-            # Load user from database
+            # Load user from DB
             current_user = User.query.filter_by(id=data['user_id']).first()
             
             if not current_user:
@@ -71,7 +62,7 @@ def token_required(f):
         except Exception as e:
             return jsonify({'message': f'Token validation error: {str(e)}'}), 401
         
-        # Pass current_user to the route function
+        # Pass current_user to route function
         return f(current_user, *args, **kwargs)
     
     return decorated

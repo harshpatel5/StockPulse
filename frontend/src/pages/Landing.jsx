@@ -119,32 +119,38 @@ const Landing = () => {
     {
       icon: <PieChart size={28} />,
       title: "Portfolio Analytics",
-      description: "Beautiful visualizations of your entire portfolio with real-time allocation charts."
+      description: "Beautiful visualizations of your entire portfolio with real-time allocation charts.",
+      image: "allocation"
     },
     {
       icon: <BarChart3 size={28} />,
-      title: "Live Market Data",
-      description: "Real-time stock prices powered by professional-grade market data APIs."
+      title: "Historical Tracking",
+      description: "30-day performance history with forward-filling for seamless trend analysis.",
+      image: "history"
+    },
+    {
+      icon: <TrendingUp size={28} />,
+      title: "Benchmark Comparison",
+      description: "Compare your portfolio performance against the S&P 500 index.",
+      image: "benchmark"
     },
     {
       icon: <Shield size={28} />,
-      title: "Bank-Level Security",
-      description: "Your data is encrypted with industry-standard protocols. We never sell your information."
+      title: "Live Price Updates",
+      description: "Real-time prices from Finnhub and CoinGecko with 60-second smart caching.",
+      image: "holdings"
     },
     {
       icon: <Zap size={28} />,
       title: "Lightning Fast",
-      description: "Instant updates and seamless experience across all your devices."
+      description: "Parallel API fetching and in-memory caching for instant page loads.",
+      image: null
     },
     {
       icon: <Globe size={28} />,
-      title: "Global Markets",
-      description: "Track stocks, ETFs, crypto, and more from markets around the world."
-    },
-    {
-      icon: <TrendingUp size={28} />,
-      title: "Smart Insights",
-      description: "Track your performance over time with historical data and trend analysis."
+      title: "Multi-Asset Support",
+      description: "Track stocks, ETFs, and cryptocurrencies all in one unified dashboard.",
+      image: "add-asset"
     }
   ];
 
@@ -284,6 +290,242 @@ const Landing = () => {
                 <p className="feature-description">{feature.description}</p>
               </motion.div>
             ))}
+          </motion.div>
+        </div>
+      </section>
+
+      {/* Screenshots Showcase Section */}
+      <section className="showcase-section">
+        <div className="showcase-container">
+          <motion.div 
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+            className="showcase-header"
+          >
+            <h2 className="showcase-title">
+              See <span className="hero-title-gradient">StockPulse</span> in Action
+            </h2>
+            <p className="showcase-subtitle">
+              A modern, intuitive interface designed for investors who value clarity and speed.
+            </p>
+          </motion.div>
+
+          {/* Dashboard Overview */}
+          <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.7 }}
+            className="showcase-item"
+          >
+            <div className="showcase-content-left">
+              <div className="showcase-badge">
+                <PieChart size={16} />
+                <span>Portfolio Dashboard</span>
+              </div>
+              <h3 className="showcase-item-title">Complete Portfolio Overview</h3>
+              <p className="showcase-item-description">
+                See your entire portfolio at a glance with three key metrics: total value, invested capital, 
+                and number of assets tracked. Real-time calculations with live price updates.
+              </p>
+              <ul className="showcase-features-list">
+                <li>✓ Live portfolio valuation</li>
+                <li>✓ Net change tracking ($ and %)</li>
+                <li>✓ Asset allocation breakdown</li>
+              </ul>
+            </div>
+            <div className="showcase-image-container">
+              <div className="showcase-image-wrapper">
+                <img 
+                  src="/docs/stats-cards.png" 
+                  alt="Portfolio Stats Cards" 
+                  className="showcase-image"
+                  onError={(e) => { e.target.style.display = 'none'; }}
+                />
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Allocation Chart */}
+          <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.7 }}
+            className="showcase-item showcase-item-reverse"
+          >
+            <div className="showcase-image-container">
+              <div className="showcase-image-wrapper">
+                <img 
+                  src="/docs/allocation-chart.png" 
+                  alt="Portfolio Allocation Chart" 
+                  className="showcase-image"
+                  onError={(e) => { e.target.style.display = 'none'; }}
+                />
+              </div>
+            </div>
+            <div className="showcase-content-right">
+              <div className="showcase-badge">
+                <PieChart size={16} />
+                <span>Asset Allocation</span>
+              </div>
+              <h3 className="showcase-item-title">Visual Portfolio Breakdown</h3>
+              <p className="showcase-item-description">
+                Interactive donut chart showing your portfolio distribution by asset. Switch between 
+                viewing by individual assets or by asset type (stocks, crypto, ETFs).
+              </p>
+              <ul className="showcase-features-list">
+                <li>✓ Color-coded asset distribution</li>
+                <li>✓ Percentage allocation per asset</li>
+                <li>✓ Toggle between asset/type view</li>
+              </ul>
+            </div>
+          </motion.div>
+
+          {/* Historical Chart */}
+          <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.7 }}
+            className="showcase-item"
+          >
+            <div className="showcase-content-left">
+              <div className="showcase-badge">
+                <BarChart3 size={16} />
+                <span>Performance History</span>
+              </div>
+              <h3 className="showcase-item-title">Track Your Growth Over Time</h3>
+              <p className="showcase-item-description">
+                30-day historical portfolio value chart with multiple time ranges (7D, 1M, 3M, 6M, 1Y, ALL). 
+                Forward-filling ensures smooth visualization even with missing data.
+              </p>
+              <ul className="showcase-features-list">
+                <li>✓ Daily portfolio snapshots</li>
+                <li>✓ Multiple time range views</li>
+                <li>✓ Smooth trend visualization</li>
+              </ul>
+            </div>
+            <div className="showcase-image-container">
+              <div className="showcase-image-wrapper">
+                <img 
+                  src="/docs/history-chart.png" 
+                  alt="Portfolio History Chart" 
+                  className="showcase-image"
+                  onError={(e) => { e.target.style.display = 'none'; }}
+                />
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Benchmark Comparison */}
+          <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.7 }}
+            className="showcase-item showcase-item-reverse"
+          >
+            <div className="showcase-image-container">
+              <div className="showcase-image-wrapper">
+                <img 
+                  src="/docs/benchmark-chart.png" 
+                  alt="Benchmark Comparison Chart" 
+                  className="showcase-image"
+                  onError={(e) => { e.target.style.display = 'none'; }}
+                />
+              </div>
+            </div>
+            <div className="showcase-content-right">
+              <div className="showcase-badge">
+                <TrendingUp size={16} />
+                <span>Market Benchmark</span>
+              </div>
+              <h3 className="showcase-item-title">Outperform the Market</h3>
+              <p className="showcase-item-description">
+                Compare your portfolio returns against the S&P 500 index. See exactly how your stock 
+                picks are performing versus the broader market benchmark.
+              </p>
+              <ul className="showcase-features-list">
+                <li>✓ Portfolio vs S&P 500 comparison</li>
+                <li>✓ Relative performance metrics</li>
+                <li>✓ Normalized starting points</li>
+              </ul>
+            </div>
+          </motion.div>
+
+          {/* Holdings List */}
+          <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.7 }}
+            className="showcase-item"
+          >
+            <div className="showcase-content-left">
+              <div className="showcase-badge">
+                <Shield size={16} />
+                <span>Holdings Management</span>
+              </div>
+              <h3 className="showcase-item-title">Detailed Asset Tracking</h3>
+              <p className="showcase-item-description">
+                View all your holdings with live prices, quantity, cost basis, current value, and 
+                profit/loss calculations. Delete unwanted assets with a single click.
+              </p>
+              <ul className="showcase-features-list">
+                <li>✓ Real-time price updates</li>
+                <li>✓ Automatic P&L calculations</li>
+                <li>✓ Easy asset management</li>
+              </ul>
+            </div>
+            <div className="showcase-image-container">
+              <div className="showcase-image-wrapper">
+                <img 
+                  src="/docs/holdings-list.png" 
+                  alt="Holdings List" 
+                  className="showcase-image"
+                  onError={(e) => { e.target.style.display = 'none'; }}
+                />
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Add Asset Form */}
+          <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.7 }}
+            className="showcase-item showcase-item-reverse"
+          >
+            <div className="showcase-image-container">
+              <div className="showcase-image-wrapper">
+                <img 
+                  src="/docs/add-asset.png" 
+                  alt="Add Asset Form" 
+                  className="showcase-image"
+                  onError={(e) => { e.target.style.display = 'none'; }}
+                />
+              </div>
+            </div>
+            <div className="showcase-content-right">
+              <div className="showcase-badge">
+                <Globe size={16} />
+                <span>Add Assets</span>
+              </div>
+              <h3 className="showcase-item-title">Simple Asset Entry</h3>
+              <p className="showcase-item-description">
+                Add stocks, ETFs, or cryptocurrencies in seconds. Just select the asset type, enter 
+                the ticker symbol, quantity, and cost basis. StockPulse handles the rest.
+              </p>
+              <ul className="showcase-features-list">
+                <li>✓ Support for stocks, ETFs, crypto</li>
+                <li>✓ Clean, intuitive form</li>
+                <li>✓ Instant portfolio updates</li>
+              </ul>
+            </div>
           </motion.div>
         </div>
       </section>

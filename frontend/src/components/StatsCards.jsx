@@ -2,9 +2,11 @@ import React from 'react';
 import { ShieldCheck, Activity } from 'lucide-react';
 import { currency } from '../utils/formatters';
 
+// Three stat cards: Portfolio Value, Invested, Assets Tracked
 export const StatsCards = ({ portfolioTotals, allocationData, netChange, netChangePct }) => {
   return (
     <section className="stats-grid">
+      {/* Card 1: Portfolio Value */}
       <article className="card">
         <div className="card-head">
           <ShieldCheck size={18} />
@@ -17,6 +19,7 @@ export const StatsCards = ({ portfolioTotals, allocationData, netChange, netChan
         </p>
       </article>
 
+      {/* Card 2: Total Invested */}
       <article className="card">
         <div className="card-head">
           <Activity size={18} />
@@ -26,6 +29,7 @@ export const StatsCards = ({ portfolioTotals, allocationData, netChange, netChan
         <p className="muted">Total cost basis</p>
       </article>
 
+      {/* Card 3: Number of Assets */}
       <article className="card">
         <div className="card-head">
           <ShieldCheck size={18} />

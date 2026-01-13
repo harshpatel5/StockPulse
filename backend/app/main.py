@@ -1,3 +1,4 @@
+# Import required libraries
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from flask_limiter import Limiter
@@ -22,24 +23,19 @@ import os
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-# Set up logger for this module
+# Setup logging
 logger = logging.getLogger(__name__)
 
 
 def create_app(config_class=Config):
-    """
-    Application factory pattern
-    Creates and configures the Flask app
-    """
+    """Creates and configures the Flask application"""
     app = Flask(__name__)
     app.config.from_object(config_class)
-    #app.config.from_object(config_class)
     
-    # Enable CORS for frontend to communicate with backend
-    # In production, replace "*" with your frontend domain
+    # Allow frontend to make requests to backend
     CORS(app, resources={r"/api/*": {"origins": "*"}})
     
-    # Initialize rate limiter to prevent spam and API abuse
+    # Rate limiter prevents spam and abuse
     limiter = Limiter(
         app=app,
         key_func=get_remote_address,
@@ -47,42 +43,41 @@ def create_app(config_class=Config):
         storage_uri="memory://"
     )
     
-    # Initialize database
+    # Setup database connection
     db.init_app(app)
     
-    # Create database tables if they don't exist
+    # Create database tables if they don't exist yet
     with app.app_context():
         db.create_all()
-        print(" Database tables created successfully!")
+        print("✓ Database tables created successfully!")
         
         # Configure logging
         logging.basicConfig(level=logging.INFO)
-        print(" On-demand chart generation enabled!")
+        print("✓ On-demand chart generation enabled!")
     
-    # -------------------------------------------------------------------------
-    # HELPER FUNCTIONS
-    # -------------------------------------------------------------------------
+    # Helper function to check if API key is configured
     def check_finnhub_key():
-        """Check if Finnhub API key is configured. Returns (is_valid, error_response)"""
+        """Returns True if API key is valid, False otherwise"""
         if not FINNHUB_KEY or FINNHUB_KEY == FINNHUB_KEY_PLACEHOLDER:
             return False, {"message": "Finnhub API key not configured on server"}
         return True, None
     
-    # -------------------------------------------------------------------------
-    # HEALTH CHECK ROUTE
-    # -------------------------------------------------------------------------
+    # =========================================================================
+    # API ROUTES START HERE
+    # =========================================================================
+    
     @app.route('/api/status', methods=['GET'])
     def get_status():
-        """Check if API is running"""
+        """Health check endpoint"""
         return jsonify({
             "status": "online",
             "message": "StockPulse API is running",
             "version": "1.0.0"
         }), 200
     
-    # -------------------------------------------------------------------------
+    # =========================================================================
     # AUTHENTICATION ROUTES
-    # -------------------------------------------------------------------------
+    # =========================================================================
     
     @app.route('/api/me', methods=['GET'])
     @token_required

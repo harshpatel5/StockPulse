@@ -5,10 +5,11 @@ import { DEFAULT_ASSET } from '../constants';
 import { toNumber } from '../utils/formatters';
 import { dedupeRequest } from '../utils/requestDeduplication';
 
-// Module-level tracking to prevent duplicate loads across component instances
+// Global tracking to prevent duplicate loads
 const loadingTokens = new Set();
 const lastLoadTime = new Map();
 
+// Main hook for managing portfolio assets, prices, and history
 export const useAssets = (token) => {
   const [assets, setAssets] = useState([]);
   const [livePrices, setLivePrices] = useState({});
@@ -19,7 +20,7 @@ export const useAssets = (token) => {
   const [pricesLoaded, setPricesLoaded] = useState(false);
   const componentIdRef = useRef(Math.random().toString(36));
 
-  // Parallel data loading using Promise.all
+  // Load assets, history, and prices using Promise.all for parallel fetching
   const loadAssets = useCallback(async () => {
     if (!token) return;
     
@@ -27,7 +28,7 @@ export const useAssets = (token) => {
     const now = Date.now();
     const lastLoad = lastLoadTime.get(loadKey) || 0;
     
-    // Prevent duplicate concurrent calls (within 500ms)
+    // Prevent duplicate calls within 500ms
     if (loadingTokens.has(loadKey) || (now - lastLoad < 500)) {
       return;
     }
@@ -35,13 +36,13 @@ export const useAssets = (token) => {
     loadingTokens.add(loadKey);
     lastLoadTime.set(loadKey, now);
     setFetchingAssets(true);
-    setPricesLoaded(false); // Reset prices loaded flag when starting new load
+    setPricesLoaded(false);
     
     try {
-      // Step 1: Fetch assets first to get symbols for price fetching
+      // Step 1: Get assets first (needed for price fetching)
       const assetsData = await dedupeRequest(`fetchAssets:${token}`, () => fetchAssets(token));
 
-      // Step 2: Fetch history and prices in parallel (prices depend on assets data)
+      // Step 2: Fetch history + prices in parallel
       const [historyData, priceData] = await Promise.all([
         dedupeRequest(`fetchHistory:${token}`, () => fetchHistory(token)),
         (async () => {

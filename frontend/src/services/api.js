@@ -1,50 +1,45 @@
 import { API_BASE_URL } from '../constants';
 
+// Build auth header with JWT token
 const getAuthHeaders = (token) => ({
   'Content-Type': 'application/json',
   Authorization: `Bearer ${token}`,
 });
 
-// Helper function to safely parse JSON responses
+// Parse JSON responses safely
 const parseResponse = async (response) => {
   const contentType = response.headers.get('content-type');
   
-  // Check if response is JSON
   if (contentType && contentType.includes('application/json')) {
     return response.json();
   }
   
-  // If not JSON (e.g., HTML error page), throw descriptive error
+  // Non-JSON response (e.g., HTML error page)
   const text = await response.text();
   console.error('Non-JSON response received:', text.substring(0, 200));
   throw new Error('Server returned invalid response. Please try again or contact support.');
 };
 
-// Helper function to handle API calls with proper error handling
+// Main API call wrapper with error handling
 const apiCall = async (url, options = {}, skipAuthRedirect = false) => {
   try {
     const response = await fetch(url, options);
-    
-    // Parse response (will throw if not JSON)
     const data = await parseResponse(response);
     
-    // Only auto-redirect on 401 for authenticated endpoints (not login/register)
+    // Only redirect on 401 for authenticated routes (not login/register)
     if (response.status === 401 && !skipAuthRedirect) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      
       window.location.href = '/login';
       throw new Error('Session expired. Please log in again.');
     }
     
-    // Check HTTP status
     if (!response.ok) {
       throw new Error(data?.message || `Request failed with status ${response.status}`);
     }
     
     return data;
   } catch (error) {
-    // Handle network errors, CORS issues, etc.
     if (error.message.includes('Failed to fetch')) {
       throw new Error('Cannot connect to server. Please check if the server is running.');
     }
@@ -52,7 +47,11 @@ const apiCall = async (url, options = {}, skipAuthRedirect = false) => {
   }
 };
 
-// Auth API
+
+// ========================================
+// AUTH ENDPOINTS
+// ========================================
+
 export const login = async (credentials) => {
   return apiCall(`${API_BASE_URL}/login`, {
     method: 'POST',
@@ -66,10 +65,14 @@ export const register = async (credentials) => {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(credentials),
-  }, true); // Skip auth redirect for register endpoint
+  }, true); // Skip redirect on register
 };
 
-// Assets API
+
+// ========================================
+// ASSET ENDPOINTS
+// ========================================
+
 export const fetchAssets = async (token) => {
   return apiCall(`${API_BASE_URL}/assets`, {
     headers: { Authorization: `Bearer ${token}` },
@@ -91,7 +94,11 @@ export const deleteAsset = async (token, assetId) => {
   });
 };
 
-// History API
+
+// ========================================
+// PORTFOLIO HISTORY ENDPOINTS
+// ========================================
+
 export const fetchHistory = async (token) => {
   return apiCall(`${API_BASE_URL}/history`, {
     headers: { Authorization: `Bearer ${token}` },
@@ -109,7 +116,11 @@ export const updateHistory = async (token, totalValue) => {
   });
 };
 
-// Prices API (server-side proxy to Finnhub - keeps API key secure)
+
+// ========================================
+// PRICE ENDPOINTS (Proxy to Finnhub)
+// ========================================
+
 export const fetchQuote = async (token, symbol) => {
   return apiCall(`${API_BASE_URL}/prices/quote/${encodeURIComponent(symbol)}`, {
     headers: { Authorization: `Bearer ${token}` },
@@ -130,7 +141,11 @@ export const searchSymbols = async (token, query) => {
   });
 };
 
-// Crypto API (server-side proxy to CoinGecko - free, no API key)
+
+// ========================================
+// CRYPTO ENDPOINTS (Proxy to CoinGecko)
+// ========================================
+
 export const fetchCryptoQuote = async (token, symbol) => {
   return apiCall(`${API_BASE_URL}/crypto/quote/${encodeURIComponent(symbol)}`, {
     headers: { Authorization: `Bearer ${token}` },
@@ -143,7 +158,11 @@ export const searchCrypto = async (token, query) => {
   });
 };
 
-// Portfolio Insights API (backend-heavy calculations)
+
+// ========================================
+// PORTFOLIO INSIGHTS
+// ========================================
+
 export const fetchPortfolioInsights = async (token, livePrices = {}) => {
   return apiCall(`${API_BASE_URL}/portfolio/insights`, {
     method: 'POST',
@@ -152,12 +171,21 @@ export const fetchPortfolioInsights = async (token, livePrices = {}) => {
   });
 };
 
-// Benchmark Comparison API (Portfolio vs S&P 500)
+
+// ========================================
+// BENCHMARK COMPARISON (vs S&P 500)
+// ========================================
+
 export const fetchBenchmarkComparison = async (token) => {
   return apiCall(`${API_BASE_URL}/benchmark/comparison`, {
     headers: { Authorization: `Bearer ${token}` },
   });
 };
+
+
+// ========================================
+// USER ENDPOINT
+// ========================================
 
 export const getMe = async () => {
   const token = localStorage.getItem('token');
@@ -169,6 +197,5 @@ export const getMe = async () => {
     headers: { Authorization: `Bearer ${token}` },
   });
   
-  // Backend returns {user: {...}}, extract and return just the user object
-  return data?.user || data;
+  return data?.user || data;  // Extract user object
 };

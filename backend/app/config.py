@@ -1,29 +1,25 @@
 import os
 
 class Config:
-    """Application configuration from environment variables"""
+    """App configuration from environment variables"""
     
-    # Database connection string
-    # Format: postgresql://username:password@host:port/database_name
-    # Note: Render uses postgres:// but SQLAlchemy requires postgresql://
+    # Database URL (postgres or postgresql)
     _database_url = os.environ.get(
         'DATABASE_URL', 
         'postgresql://appuser:strongpassword@stockpulse-db:5432/portfoliodb'
     )
-    # Fix for Render: replace postgres:// with postgresql://
+    # Fix Render's postgres:// → postgresql://
     if _database_url.startswith('postgres://'):
         _database_url = _database_url.replace('postgres://', 'postgresql://', 1)
     
     SQLALCHEMY_DATABASE_URI = _database_url
+    SQLALCHEMY_TRACK_MODIFICATIONS = False  # Disable event system
     
-    # Turn off SQLAlchemy event system
-    SQLALCHEMY_TRACK_MODIFICATIONS = False
-    
-    # App secret for signing JWTs
+    # JWT secret key
     SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
     
-    # JWT token expiration time (in hours) - set to 24 hours by default
+    # JWT expiration (24 hours)
     JWT_EXPIRATION_HOURS = int(os.environ.get('JWT_EXPIRATION_HOURS', 24))
     
-    # Flask debug mode (False in production!)
+    # Debug mode (False in production)
     DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
