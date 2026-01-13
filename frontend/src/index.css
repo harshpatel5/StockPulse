@@ -5,7 +5,7 @@
     "Segoe UI", sans-serif;
   line-height: 1.5;
   
-  /* Dark Theme - Industry Standard Colors */
+  /* Dark Theme - Professional Colors */
   --bg-primary: #0F172A;
   --bg-secondary: #1E293B;
   --bg-tertiary: #334155;
@@ -13,7 +13,7 @@
   --text-secondary: #CBD5E1;
   --text-muted: #94A3B8;
   --accent-primary: #3B82F6;
-  --accent-secondary: #6366F1;
+  --accent-secondary: #1E40AF;
   --success: #10B981;
   --error: #EF4444;
   --warning: #F59E0B;
@@ -332,10 +332,15 @@ body {
 }
 
 .btn.primary {
-  background: linear-gradient(120deg, var(--accent-primary), var(--accent-secondary));
+  background: var(--accent-primary);
   border-color: transparent;
   color: white;
-  box-shadow: 0 12px 30px rgba(91, 141, 239, 0.35);
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+}
+
+.btn.primary:hover:not(:disabled) {
+  background: var(--accent-secondary);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
 }
 
 .btn.primary:disabled {
@@ -442,34 +447,59 @@ body {
 
 .card {
   background: var(--bg-secondary);
-  border-radius: 24px;
+  border-radius: 20px;
   padding: 1.5rem;
   border: 1px solid var(--border-color);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.01), 0 20px 65px rgba(2, 6, 23, 0.4);
-  transition: background-color 0.3s ease, border-color 0.3s ease;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  transition: all 0.2s ease;
+}
+
+.card:hover {
+  border-color: var(--border-light);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
 }
 
 .card-head {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: 0.9rem;
-  color: var(--text-muted);
+  font-size: 0.85rem;
+  color: var(--text-secondary);
   margin-bottom: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.card-head svg {
+  color: var(--accent-primary);
+  filter: drop-shadow(0 2px 4px rgba(37, 99, 235, 0.2));
 }
 
 .card h2 {
   margin: 0;
-  font-size: clamp(1.4rem, 2vw, 2rem);
+  font-size: clamp(1.5rem, 2.5vw, 2.2rem);
   color: var(--text-primary);
+  font-weight: 700;
+  letter-spacing: -0.02em;
 }
 
 .positive {
   color: var(--success);
+  font-weight: 600;
+  font-size: 0.95rem;
 }
 
 .negative {
   color: var(--error);
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.muted {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin: 0.5rem 0 0;
 }
 
 .charts-grid {
@@ -481,6 +511,12 @@ body {
 
 .chart-card {
   min-height: 320px;
+  background: var(--bg-secondary);
+  border-radius: 20px;
+  padding: 1.5rem;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  transition: all 0.2s ease;
 }
 
 .content-grid {
@@ -506,14 +542,19 @@ body {
 }
 
 .asset-row {
-  border-radius: 18px;
+  border-radius: 16px;
   padding: 1rem;
   background: var(--bg-tertiary);
   border: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
   gap: 0.85rem;
-  transition: background-color 0.3s ease, border-color 0.3s ease;
+  transition: all 0.2s ease;
+}
+
+.asset-row:hover {
+  border-color: var(--border-light);
+  background: rgba(51, 65, 85, 0.8);
 }
 
 .asset-main {
@@ -607,6 +648,11 @@ body {
 .allocation-card {
   position: relative;
   overflow: visible;
+  background: var(--bg-secondary);
+  border-radius: 20px;
+  padding: 1.5rem;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
 }
 
 .allocation-header {
@@ -625,9 +671,10 @@ body {
 .allocation-tabs {
   display: flex;
   gap: 0.5rem;
-  padding: 0.25rem;
+  padding: 0.35rem;
   background: var(--bg-tertiary);
   border-radius: 12px;
+  border: 1px solid var(--border-light);
 }
 
 .tab-btn {

@@ -179,7 +179,7 @@ const Landing = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
           >
-            <span className="hero-badge">✨ The smarter way to track your wealth</span>
+            <span className="hero-badge">The smarter way to track your wealth</span>
           </motion.div>
 
           <motion.h1 
@@ -228,28 +228,6 @@ const Landing = () => {
         >
           <ChevronDown size={32} />
         </motion.div>
-      </section>
-
-      {/* Stats Section */}
-      <section className="stats-section">
-        <div className="stats-container">
-          <motion.div 
-            initial="initial"
-            whileInView="animate"
-            viewport={{ once: true }}
-            variants={staggerContainer}
-            className="stats-grid"
-          >
-            {stats.map((stat, index) => (
-              <motion.div key={index} variants={fadeInUp} className="stat-item">
-                <div className="stat-value">
-                  <AnimatedCounter target={stat.value} suffix={stat.suffix} />
-                </div>
-                <div className="stat-label">{stat.label}</div>
-              </motion.div>
-            ))}
-          </motion.div>
-        </div>
       </section>
 
       {/* Features Section */}
@@ -521,11 +499,33 @@ const Landing = () => {
                 the ticker symbol, quantity, and cost basis. StockPulse handles the rest.
               </p>
               <ul className="showcase-features-list">
-                <li>✓ Support for stocks, ETFs, crypto</li>
-                <li>✓ Clean, intuitive form</li>
-                <li>✓ Instant portfolio updates</li>
+                <li>Support for stocks, ETFs, crypto</li>
+                <li>Clean, intuitive form</li>
+                <li>Instant portfolio updates</li>
               </ul>
             </div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* Stats Section */}
+      <section className="stats-section">
+        <div className="stats-container">
+          <motion.div 
+            initial="initial"
+            whileInView="animate"
+            viewport={{ once: true }}
+            variants={staggerContainer}
+            className="stats-grid"
+          >
+            {stats.map((stat, index) => (
+              <motion.div key={index} variants={fadeInUp} className="stat-item">
+                <div className="stat-value">
+                  <AnimatedCounter target={stat.value} suffix={stat.suffix} />
+                </div>
+                <div className="stat-label">{stat.label}</div>
+              </motion.div>
+            ))}
           </motion.div>
         </div>
       </section>
