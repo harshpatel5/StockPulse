@@ -58,11 +58,12 @@ export const usePortfolio = (assets, livePrices, history) => {
       // new Date() correctly parses ISO 8601 with timezone
       const dateObj = new Date(entry.date);
 
-      // Format date for display in user's local timezone
+      // Format date for display - use UTC to avoid timezone shift issues
       const formattedDate = dateObj.toLocaleDateString('en-US', {
         month: 'short',
         day: 'numeric',
         year: history.length > 30 ? 'numeric' : undefined, // Show year if many data points
+        timeZone: 'UTC', // Force UTC display to match backend date
       });
 
       return {

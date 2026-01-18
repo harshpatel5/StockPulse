@@ -107,10 +107,14 @@ export const BenchmarkChart = ({ token }) => {
     });
   }, [data, timeframe]);
 
-  // Format date for X-axis (displays in user's local timezone)
+  // Format date for X-axis (displays in UTC to match backend date)
   const formatDate = (dateStr) => {
     const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    return date.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric',
+      timeZone: 'UTC' // Force UTC display to match backend date
+    });
   };
 
   // Calculate Y-axis domain with padding
