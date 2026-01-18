@@ -268,9 +268,10 @@ def generate_portfolio_chart_data(user_id, days=30):
             PortfolioHistory.date <= end_datetime
         ).order_by(PortfolioHistory.date.asc()).all()
         
-        # New user with no history
+        # New user with no history - return today's date at midnight UTC
         if not cached_snapshots:
-            return [{"date": now_utc.isoformat(), "total_value": 0}]
+            today_midnight_utc = datetime.combine(today, datetime.min.time(), tzinfo=timezone.utc)
+            return [{"date": today_midnight_utc.isoformat(), "total_value": 0}]
         
         # Build dictionary of dates → values (extract date from datetime)
         history_dict = {snap.date.date(): snap.total_value for snap in cached_snapshots}
