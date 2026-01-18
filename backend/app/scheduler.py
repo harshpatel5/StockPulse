@@ -308,3 +308,100 @@ def generate_portfolio_chart_data(user_id, days=30):
         return []
 
 
+# =========================================================================
+# CRON JOB - Daily Portfolio Snapshots
+# =========================================================================
+
+def snapshot_all_users_portfolios():
+    """
+    Cron job: Take daily snapshot of all users' portfolios.
+    Runs automatically at midnight UTC.
+    """
+    from flask import current_app
+    
+    logger.info("Starting daily portfolio snapshot job...")
+    
+    try:
+        # Get all users with assets
+        users_with_assets = db.session.query(User.id).join(Asset).distinct().all()
+        
+        if not users_with_assets:
+            logger.info("No users with assets found. Skipping snapshot.")
+            return
+        
+        now_utc = datetime.now(timezone.utc)
+        today_date = get_last_weekday_date(now_utc.date())
+        
+        # Start and end of today for checking existing snapshots
+        start_of_day = datetime.combine(today_date, datetime.min.time(), tzinfo=timezone.utc)
+        end_of_day = datetime.combine(today_date, datetime.max.time(), tzinfo=timezone.utc)
+        
+        success_count = 0
+        skip_count = 0
+        error_count = 0
+        
+        for (user_id,) in users_with_assets:
+            try:
+                # Check if snapshot already exists for today
+                existing = PortfolioHistory.query.filter(
+                    PortfolioHistory.user_id == user_id,
+                    PortfolioHistory.date >= start_of_day,
+                    PortfolioHistory.date <= end_of_day
+                ).first()
+                
+                if existing:
+                    skip_count += 1
+                    continue
+                
+                # Calculate portfolio value
+                total_value = calculate_user_portfolio_value(user_id)
+                
+                # Create snapshot
+                snapshot = PortfolioHistory(
+                    user_id=user_id,
+                    date=now_utc,
+                    total_value=total_value
+                )
+                db.session.add(snapshot)
+                db.session.commit()
+                
+                success_count += 1
+                logger.debug(f"Snapshot created for user {user_id}: ${total_value:.2f}")
+                
+            except Exception as e:
+                db.session.rollback()
+                error_count += 1
+                logger.error(f"Failed to snapshot user {user_id}: {e}")
+        
+        logger.info(f"Daily snapshot complete: {success_count} created, {skip_count} skipped, {error_count} errors")
+        
+    except Exception as e:
+        logger.error(f"Daily snapshot job failed: {e}")
+
+
+def init_scheduler(app):
+    """Initialize APScheduler for background jobs"""
+    from apscheduler.schedulers.background import BackgroundScheduler
+    from apscheduler.triggers.cron import CronTrigger
+    
+    scheduler = BackgroundScheduler()
+    
+    # Run daily at midnight UTC
+    scheduler.add_job(
+        func=lambda: run_with_app_context(app, snapshot_all_users_portfolios),
+        trigger=CronTrigger(hour=0, minute=0, timezone='UTC'),
+        id='daily_portfolio_snapshot',
+        name='Daily Portfolio Snapshot',
+        replace_existing=True
+    )
+    
+    scheduler.start()
+    logger.info("✓ Scheduler started: Daily snapshots at midnight UTC")
+    
+    return scheduler
+
+
+def run_with_app_context(app, func):
+    """Run a function within Flask app context"""
+    with app.app_context():
+        func()

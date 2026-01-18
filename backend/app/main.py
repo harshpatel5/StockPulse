@@ -15,6 +15,7 @@ from app.scheduler import (
     calculate_user_portfolio_value, 
     generate_portfolio_chart_data,
     get_last_weekday_date,
+    init_scheduler,
     FINNHUB_KEY,
     FINNHUB_KEY_PLACEHOLDER
 )
@@ -54,6 +55,11 @@ def create_app(config_class=Config):
         # Configure logging
         logging.basicConfig(level=logging.INFO)
         print("✓ On-demand chart generation enabled!")
+    
+    # Initialize background scheduler for daily snapshots
+    # Only start scheduler in main process (not in reloader)
+    if not app.debug or os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
+        init_scheduler(app)
     
     # Helper function to check if API key is configured
     def check_finnhub_key():
