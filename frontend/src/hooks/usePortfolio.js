@@ -54,11 +54,11 @@ export const usePortfolio = (assets, livePrices, history) => {
     if (!history.length) return [];
 
     return history.map((entry) => {
-      // Parse date string (format: YYYY-MM-DD)
-      const [year, month, day] = entry.date.split('-');
-      const dateObj = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+      // Parse ISO datetime string (handles both "YYYY-MM-DD" and "YYYY-MM-DDTHH:MM:SS+00:00")
+      // new Date() correctly parses ISO 8601 with timezone
+      const dateObj = new Date(entry.date);
 
-      // Format date for display
+      // Format date for display in user's local timezone
       const formattedDate = dateObj.toLocaleDateString('en-US', {
         month: 'short',
         day: 'numeric',

@@ -6,8 +6,8 @@ from flask_limiter.util import get_remote_address
 from app.auth import generate_token, token_required
 from app.models import db, User, Asset, PortfolioHistory
 from app.config import Config
-from sqlalchemy import exc
-from datetime import date, datetime, timedelta
+from sqlalchemy import exc, func
+from datetime import date, datetime, timedelta, timezone
 from app.scheduler import (
     fetch_live_price, 
     fetch_crypto_price, 
@@ -288,8 +288,11 @@ def create_app(config_class=Config):
         Weekend requests are mapped to Friday's date.
         """
         try:
-            # Map weekends to Friday
-            today = get_last_weekday_date(date.today())
+            # Get current UTC time and map weekends to Friday
+            now_utc = datetime.now(timezone.utc)
+            today_date = get_last_weekday_date(now_utc.date())
+            # Create UTC datetime for the date (use current time, not midnight)
+            today_datetime = now_utc.replace(hour=0, minute=0, second=0, microsecond=0) if today_date == now_utc.date() else datetime.combine(today_date, datetime.min.time(), tzinfo=timezone.utc)
             data = request.get_json() or {}
             
             # Use provided total_value from frontend (calculated with live prices)
@@ -300,18 +303,22 @@ def create_app(config_class=Config):
                 # Fallback: calculate using live prices
                 total_value = calculate_user_portfolio_value(current_user.id)
 
-            # Check if today's history exists
-            history = PortfolioHistory.query.filter_by(
-                user_id=current_user.id,
-                date=today
+            # Check if today's history exists (query by date range for the UTC day)
+            start_of_day = datetime.combine(today_date, datetime.min.time(), tzinfo=timezone.utc)
+            end_of_day = datetime.combine(today_date, datetime.max.time(), tzinfo=timezone.utc)
+            history = PortfolioHistory.query.filter(
+                PortfolioHistory.user_id == current_user.id,
+                PortfolioHistory.date >= start_of_day,
+                PortfolioHistory.date <= end_of_day
             ).first()
 
             if history:
                 history.total_value = total_value  # update entry
+                history.date = now_utc  # update timestamp to current UTC time
             else:
                 history = PortfolioHistory(
                     user_id=current_user.id,
-                    date=today,
+                    date=now_utc,  # Store full UTC datetime
                     total_value=total_value
                 )
                 db.session.add(history)
@@ -320,7 +327,7 @@ def create_app(config_class=Config):
 
             return jsonify({
                 "message": "History updated",
-                "date": today.isoformat(),
+                "date": now_utc.isoformat(),
                 "total_value": total_value
             }), 200
 
@@ -705,9 +712,9 @@ def create_app(config_class=Config):
                     "data": []
                 }), 200
             
-            # Get date range from portfolio history
-            start_date = history[0].date
-            end_date = history[-1].date
+            # Get date range from portfolio history (extract date from datetime)
+            start_date = history[0].date.date() if hasattr(history[0].date, 'date') else history[0].date
+            end_date = history[-1].date.date() if hasattr(history[-1].date, 'date') else history[-1].date
             start_value = float(history[0].total_value)
             
             if start_value <= 0:
@@ -742,7 +749,7 @@ def create_app(config_class=Config):
                     
                     for i, ts in enumerate(timestamps):
                         if i < len(closes) and closes[i] is not None:
-                            date_str = datetime.fromtimestamp(ts).strftime('%Y-%m-%d')
+                            date_str = datetime.fromtimestamp(ts, tz=timezone.utc).strftime('%Y-%m-%d')
                             spy_data[date_str] = closes[i]
                     
                     logger.info(f"Fetched {len(spy_data)} days of SPY data from Yahoo Finance")
@@ -753,7 +760,8 @@ def create_app(config_class=Config):
             # Get S&P 500 starting value (first available date)
             spy_start_value = None
             for h in history:
-                date_str = h.date.strftime('%Y-%m-%d')
+                h_date = h.date.date() if hasattr(h.date, 'date') else h.date
+                date_str = h_date.strftime('%Y-%m-%d')
                 if date_str in spy_data:
                     spy_start_value = spy_data[date_str]
                     break
@@ -761,7 +769,8 @@ def create_app(config_class=Config):
             # Build comparison data - normalize both to percentage change
             comparison_data = []
             for h in history:
-                date_str = h.date.strftime('%Y-%m-%d')
+                h_date = h.date.date() if hasattr(h.date, 'date') else h.date
+                date_str = h_date.strftime('%Y-%m-%d')
                 portfolio_value = float(h.total_value)
                 
                 # Calculate portfolio percentage change from start
@@ -823,8 +832,8 @@ def create_app(config_class=Config):
             
             return jsonify({
                 "data": comparison_data,
-                "start_date": start_date.isoformat(),
-                "end_date": end_date.isoformat(),
+                "start_date": datetime.combine(start_date, datetime.min.time(), tzinfo=timezone.utc).isoformat(),
+                "end_date": datetime.combine(end_date, datetime.min.time(), tzinfo=timezone.utc).isoformat(),
                 "portfolio_start": start_value,
                 "has_sp500_data": len(spy_data) > 0
             }), 200

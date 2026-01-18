@@ -1,7 +1,7 @@
 # Import required libraries
 from flask_sqlalchemy import SQLAlchemy
 from passlib.context import CryptContext
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy.orm import relationship
 
 # Database instance (configured in main.py)
@@ -19,7 +19,7 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(120), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(255), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     
     # One user can have many assets
     assets = relationship("Asset", backref="owner", lazy=True, cascade="all, delete-orphan")
@@ -55,7 +55,7 @@ class Asset(db.Model):
     quantity = db.Column(db.Float, nullable=False)  # How many shares/coins
     cost_basis = db.Column(db.Float, nullable=False)  # Total amount paid
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     
     def to_dict(self):
         """Converts asset data to JSON format"""
@@ -79,9 +79,9 @@ class PortfolioHistory(db.Model):
     # Table columns
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    date = db.Column(db.Date, nullable=False, index=True)  # Date of snapshot
+    date = db.Column(db.DateTime(timezone=True), nullable=False, index=True)  # UTC timestamp of snapshot
     total_value = db.Column(db.Float, nullable=False)  # Portfolio value on that date
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     # Link back to user
     user = relationship("User", backref="history", lazy=True)

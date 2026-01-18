@@ -3,7 +3,7 @@ Price fetching and portfolio calculations
 Handles API calls to Finnhub (stocks) and CoinGecko (crypto)
 """
 # Import required libraries
-from datetime import date
+from datetime import date, datetime, timezone, timedelta
 from app.models import db, User, Asset, PortfolioHistory
 import requests
 import logging
@@ -51,10 +51,9 @@ class SimpleCache:
     
     def get(self, key):
         """Check if we have a cached price that's still valid"""
-        from datetime import datetime
         if key in self._cache:
             value, expiry = self._cache[key]
-            if datetime.now() < expiry:
+            if datetime.now(timezone.utc) < expiry:
                 return value
             # Price is old, remove it
             del self._cache[key]
@@ -62,8 +61,7 @@ class SimpleCache:
     
     def set(self, key, value, ttl_seconds=60):
         """Store price in cache for 60 seconds"""
-        from datetime import datetime, timedelta
-        expiry = datetime.now() + timedelta(seconds=ttl_seconds)
+        expiry = datetime.now(timezone.utc) + timedelta(seconds=ttl_seconds)
         self._cache[key] = (value, expiry)
     
     def clear(self):
@@ -214,10 +212,8 @@ def is_weekend(target_date):
 
 def get_last_weekday_date(target_date=None):
     """Map weekends to Friday (e.g., Sat/Sun → Fri)"""
-    from datetime import timedelta
-    
     if target_date is None:
-        target_date = date.today()
+        target_date = datetime.now(timezone.utc).date()
     
     weekday = target_date.weekday()
     if weekday == 5:  # Saturday
@@ -230,15 +226,13 @@ def get_last_weekday_date(target_date=None):
 
 def cleanup_old_snapshots(user_id, days=30):
     """Delete portfolio snapshots older than X days (default 30)"""
-    from datetime import timedelta
-    
     try:
-        cutoff_date = date.today() - timedelta(days=days)
+        cutoff_datetime = datetime.now(timezone.utc) - timedelta(days=days)
         
         # Delete old snapshots
         deleted = PortfolioHistory.query.filter(
             PortfolioHistory.user_id == user_id,
-            PortfolioHistory.date < cutoff_date
+            PortfolioHistory.date < cutoff_datetime
         ).delete()
         
         if deleted > 0:
@@ -257,31 +251,32 @@ def generate_portfolio_chart_data(user_id, days=30):
     Generate chart data from DB snapshots (last 30 days).
     Forward-fills missing days with last known value.
     """
-    from datetime import timedelta
-    
     try:
         # Delete old snapshots first
         cleanup_old_snapshots(user_id, days=days)
         
-        today = date.today()
+        now_utc = datetime.now(timezone.utc)
+        today = now_utc.date()
         start_date = today - timedelta(days=days)
+        start_datetime = datetime.combine(start_date, datetime.min.time(), tzinfo=timezone.utc)
+        end_datetime = now_utc
         
-        # Get snapshots from DB
+        # Get snapshots from DB (now using datetime field)
         cached_snapshots = PortfolioHistory.query.filter(
             PortfolioHistory.user_id == user_id,
-            PortfolioHistory.date >= start_date,
-            PortfolioHistory.date <= today
+            PortfolioHistory.date >= start_datetime,
+            PortfolioHistory.date <= end_datetime
         ).order_by(PortfolioHistory.date.asc()).all()
         
         # New user with no history
         if not cached_snapshots:
-            return [{"date": today.isoformat(), "total_value": 0}]
+            return [{"date": now_utc.isoformat(), "total_value": 0}]
         
-        # Build dictionary of dates → values
-        history_dict = {snap.date: snap.total_value for snap in cached_snapshots}
+        # Build dictionary of dates → values (extract date from datetime)
+        history_dict = {snap.date.date(): snap.total_value for snap in cached_snapshots}
         
         # Chart starts at first snapshot (or 30 days ago, whichever is later)
-        first_snapshot_date = cached_snapshots[0].date
+        first_snapshot_date = cached_snapshots[0].date.date()
         chart_start_date = max(first_snapshot_date, start_date)
         
         # Fill in all days with forward-filling
@@ -296,8 +291,10 @@ def generate_portfolio_chart_data(user_id, days=30):
             else:
                 value = last_known_value  # Forward-fill missing day
             
+            # Return ISO format with timezone (midnight UTC for that date)
+            date_utc = datetime.combine(current_date, datetime.min.time(), tzinfo=timezone.utc)
             chart_data.append({
-                "date": current_date.isoformat(),
+                "date": date_utc.isoformat(),
                 "total_value": value
             })
             

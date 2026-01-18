@@ -101,15 +101,13 @@ export const BenchmarkChart = ({ token }) => {
     const cutoffDate = new Date(now.getTime() - daysAgo * 24 * 60 * 60 * 1000);
 
     return data.filter((item) => {
+      // Parse ISO datetime string (handles both "YYYY-MM-DD" and "YYYY-MM-DDTHH:MM:SS+00:00")
       const itemDate = new Date(item.date);
-      itemDate.setHours(0, 0, 0, 0);
-      const checkDate = new Date(cutoffDate);
-      checkDate.setHours(0, 0, 0, 0);
-      return itemDate >= checkDate;
+      return itemDate >= cutoffDate;
     });
   }, [data, timeframe]);
 
-  // Format date for X-axis
+  // Format date for X-axis (displays in user's local timezone)
   const formatDate = (dateStr) => {
     const date = new Date(dateStr);
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
