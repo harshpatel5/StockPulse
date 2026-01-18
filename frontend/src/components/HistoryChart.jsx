@@ -110,7 +110,7 @@ export const HistoryChart = ({ lineSeries }) => {
               height={60}
               tickFormatter={(value) => {
                 const date = new Date(value);
-                return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
               }}
               interval={filteredData.length <= 7 ? 0 : Math.ceil(filteredData.length / 5)}
             />
@@ -124,7 +124,7 @@ export const HistoryChart = ({ lineSeries }) => {
               formatter={(value) => currency(value)}
               labelFormatter={(label) => {
                 const date = new Date(label);
-                return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
               }}
               contentStyle={{ 
                 backgroundColor: '#0b1220', 
