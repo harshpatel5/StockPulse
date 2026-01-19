@@ -146,13 +146,19 @@ export const HistoryChart = ({ lineSeries }) => {
                 <stop offset="95%" stopColor={isPositive ? "#10b981" : "#ef4444"} stopOpacity={0}/>
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" vertical={false} />
+            <CartesianGrid 
+              strokeDasharray="3 3" 
+              stroke="#334155" 
+              strokeOpacity={0.4}
+              horizontal={true}
+              vertical={false}
+            />
             <XAxis 
               dataKey="fullDate" 
               stroke="#64748b" 
               tick={{ fill: '#64748b', fontSize: 11 }} 
               tickLine={false}
-              axisLine={{ stroke: '#1f2937' }}
+              axisLine={{ stroke: '#475569', strokeWidth: 1.5 }}
               angle={-45}
               textAnchor="end"
               height={70}
@@ -166,7 +172,7 @@ export const HistoryChart = ({ lineSeries }) => {
               stroke="#64748b" 
               tick={{ fill: '#64748b', fontSize: 11 }}
               tickLine={true}
-              axisLine={{ stroke: '#1f2937' }}
+              axisLine={{ stroke: '#475569', strokeWidth: 1.5 }}
               tickFormatter={(value) => {
                 if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
                 if (value >= 1000) return `$${(value / 1000).toFixed(1)}K`;

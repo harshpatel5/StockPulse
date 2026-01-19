@@ -47,10 +47,14 @@ def create_app(config_class=Config):
     # Setup database connection
     db.init_app(app)
     
-    # Create database tables if they don't exist yet
+    # ⚠️ TEMPORARY: Drop and recreate tables to apply DateTime schema changes
+    # TODO: Remove db.drop_all() after first successful deployment
     with app.app_context():
+        print("⚠️ DROPPING ALL TABLES (applying schema changes)...")
+        db.drop_all()
+        print("✓ Tables dropped. Creating tables with new schema...")
         db.create_all()
-        print("✓ Database tables created successfully!")
+        print("✓ Database tables recreated successfully with DateTime support!")
         
         # Configure logging
         logging.basicConfig(level=logging.INFO)
