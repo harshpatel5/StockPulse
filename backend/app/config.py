@@ -15,6 +15,14 @@ class Config:
     SQLALCHEMY_DATABASE_URI = _database_url
     SQLALCHEMY_TRACK_MODIFICATIONS = False  # Disable event system
     
+    # Connection pooling - reuse DB connections for faster queries
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        'pool_size': 5,           # Keep 5 connections ready
+        'pool_recycle': 300,      # Recycle connections after 5 min
+        'pool_pre_ping': True,    # Check connection health before use
+        'max_overflow': 10,       # Allow 10 extra connections during peak
+    }
+    
     # JWT secret key
     SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
     
