@@ -139,7 +139,7 @@ export const HistoryChart = ({ lineSeries }) => {
 
       {filteredData.length > 0 ? (
         <ResponsiveContainer width="100%" height={280}>
-          <AreaChart data={filteredData} margin={{ top: 10, right: 20, left: 10, bottom: 5 }}>
+          <AreaChart data={filteredData} margin={{ top: 10, right: 20, left: 50, bottom: 50 }}>
             <defs>
               <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor={isPositive ? "#10b981" : "#ef4444"} stopOpacity={0.3}/>
@@ -153,6 +153,9 @@ export const HistoryChart = ({ lineSeries }) => {
               tick={{ fill: '#64748b', fontSize: 11 }} 
               tickLine={false}
               axisLine={{ stroke: '#1f2937' }}
+              angle={-45}
+              textAnchor="end"
+              height={70}
               tickFormatter={(value) => {
                 const date = new Date(value);
                 return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
@@ -162,15 +165,15 @@ export const HistoryChart = ({ lineSeries }) => {
             <YAxis 
               stroke="#64748b" 
               tick={{ fill: '#64748b', fontSize: 11 }}
-              tickLine={false}
-              axisLine={false}
+              tickLine={true}
+              axisLine={{ stroke: '#1f2937' }}
               tickFormatter={(value) => {
                 if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
                 if (value >= 1000) return `$${(value / 1000).toFixed(1)}K`;
                 return `$${value.toFixed(0)}`;
               }}
               domain={yDomain}
-              width={60}
+              width={50}
             />
             <Tooltip
               formatter={(value) => [currency(value), 'Value']}
