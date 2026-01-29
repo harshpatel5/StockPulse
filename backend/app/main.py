@@ -73,6 +73,7 @@ def create_app(config_class=Config):
     # =========================================================================
     
     @app.route('/api/status', methods=['GET'])
+    @limiter.exempt
     def get_status():
         """Health check endpoint"""
         return jsonify({
