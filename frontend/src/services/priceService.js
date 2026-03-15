@@ -1,7 +1,8 @@
 // Price Service - All API calls proxied through backend (API keys never exposed)
-import { 
-  fetchQuote, 
-  fetchBatchQuotes, 
+import {
+  fetchQuote,
+  fetchBatchQuotes,
+  fetchCachedPricesApi,
   searchSymbols as apiSearchSymbols,
   fetchCryptoQuote,
   searchCrypto as apiSearchCrypto
@@ -40,22 +41,24 @@ export const fetchCryptoPriceForSymbol = async (token, symbol) => {
   }
 };
 
+// Fetch all cached prices from Redis (single API call)
+export const fetchCachedPrices = async (token) => {
+  if (!token) return {};
+  try {
+    const data = await fetchCachedPricesApi(token);
+    return data?.prices || {};
+  } catch (error) {
+    console.warn('Failed to fetch cached prices:', error);
+    return {};
+  }
+};
+
 // Fetch live prices for all assets (stocks, ETFs, crypto)
+// Now tries Redis cache first, falls back to individual API calls for missing symbols
 export const refreshPrices = async (token, assetList = []) => {
   const list = Array.isArray(assetList) ? assetList : [];
-  
-  // Separate stocks/ETFs (Finnhub) from crypto (CoinGecko)
-  const stocksAndETFs = list.filter((asset) => {
-    const normalizedType = asset.type ? asset.type.toLowerCase().trim() : '';
-    return normalizedType === 'stock' || normalizedType === 'etf';
-  });
-  
-  const cryptos = list.filter((asset) => {
-    const normalizedType = asset.type ? asset.type.toLowerCase().trim() : '';
-    return normalizedType === 'crypto';
-  });
 
-  if (!stocksAndETFs.length && !cryptos.length) {
+  if (!list.length) {
     return { prices: {}, warning: null };
   }
 
@@ -66,15 +69,38 @@ export const refreshPrices = async (token, assetList = []) => {
   const prices = {};
   let hasError = false;
 
-  // Batch fetch stocks/ETFs (Finnhub API)
-  if (stocksAndETFs.length) {
+  // Step 1: Try to get all prices from Redis cache (single call)
+  try {
+    const cachedPrices = await fetchCachedPrices(token);
+    Object.assign(prices, cachedPrices);
+  } catch (error) {
+    console.warn('Cached prices fetch failed, falling back to individual calls', error);
+  }
+
+  // Step 2: Find symbols still missing from cache
+  const missingStocks = [];
+  const missingCryptos = [];
+
+  for (const asset of list) {
+    const symbol = asset.name?.trim().toUpperCase();
+    if (!symbol || prices[symbol] !== undefined) continue;
+
+    const normalizedType = asset.type ? asset.type.toLowerCase().trim() : '';
+    if (normalizedType === 'stock' || normalizedType === 'etf') {
+      missingStocks.push(symbol);
+    } else if (normalizedType === 'crypto') {
+      missingCryptos.push(symbol);
+    }
+  }
+
+  // Step 3: Fetch missing stocks via batch (Finnhub)
+  if (missingStocks.length) {
     try {
-      const symbols = stocksAndETFs.map((asset) => asset.name.trim().toUpperCase());
-      const symbolsKey = symbols.sort().join(',');
+      const symbolsKey = [...missingStocks].sort().join(',');
       const data = await dedupeRequest(
         `fetchBatchQuotes:${token}:${symbolsKey}`,
-        () => fetchBatchQuotes(token, symbols),
-        1000  // 1-second dedupe window
+        () => fetchBatchQuotes(token, missingStocks),
+        1000
       );
       Object.assign(prices, data?.prices || {});
     } catch (error) {
@@ -83,16 +109,15 @@ export const refreshPrices = async (token, assetList = []) => {
     }
   }
 
-  // Fetch crypto prices individually (CoinGecko has no batch endpoint)
-  if (cryptos.length) {
+  // Step 4: Fetch missing crypto individually
+  if (missingCryptos.length) {
     const cryptoPrices = await Promise.all(
-      cryptos.map(async (asset) => {
-        const symbol = asset.name.trim().toUpperCase();
+      missingCryptos.map(async (symbol) => {
         const price = await fetchCryptoPriceForSymbol(token, symbol);
         return { symbol, price };
       })
     );
-    
+
     cryptoPrices.forEach(({ symbol, price }) => {
       if (price !== null) {
         prices[symbol] = price;

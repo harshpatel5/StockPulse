@@ -143,6 +143,17 @@ export const searchSymbols = async (token, query) => {
 
 
 // ========================================
+// CACHED PRICES (Redis - single call)
+// ========================================
+
+export const fetchCachedPricesApi = async (token) => {
+  return apiCall(`${API_BASE_URL}/prices/cached`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+};
+
+
+// ========================================
 // CRYPTO ENDPOINTS (Proxy to CoinGecko)
 // ========================================
 
