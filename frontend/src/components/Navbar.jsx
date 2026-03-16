@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { TrendingUp, LogOut } from 'lucide-react';
+import { TrendingUp, LogOut, Menu } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
 export const Navbar = () => {
@@ -19,6 +19,10 @@ export const Navbar = () => {
         <TrendingUp size={28} />
         <span>StockPulse</span>
       </Link>
+
+      <button className="hamburger-btn" aria-label="Open menu" onClick={() => {}}>
+        <Menu size={24} />
+      </button>
 
       <div className="nav-actions">
         {isAuthenticated ? (

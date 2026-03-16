@@ -5,7 +5,7 @@
 
 /* Main Card */
 .benchmark-card {
-  background: linear-gradient(135deg, var(--bg-secondary) 0%, rgba(15, 23, 42, 0.95) 100%);
+  background: var(--bg-secondary);
 }
 
 /* Header */
@@ -42,7 +42,7 @@
 
 .info-btn:hover {
   color: var(--accent-primary);
-  background: rgba(59, 130, 246, 0.1);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 /* Timeframe Selector */
@@ -146,20 +146,20 @@
 }
 
 .performance-message.positive {
-  background: linear-gradient(135deg, rgba(34, 197, 94, 0.15) 0%, rgba(34, 197, 94, 0.05) 100%);
+  background: rgba(34, 197, 94, 0.1);
   border: 1px solid rgba(34, 197, 94, 0.3);
   color: var(--success);
 }
 
 .performance-message.negative {
-  background: linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(239, 68, 68, 0.05) 100%);
+  background: rgba(239, 68, 68, 0.1);
   border: 1px solid rgba(239, 68, 68, 0.3);
   color: var(--error);
 }
 
 .performance-message.neutral {
-  background: linear-gradient(135deg, rgba(148, 163, 184, 0.15) 0%, rgba(148, 163, 184, 0.05) 100%);
-  border: 1px solid rgba(148, 163, 184, 0.3);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   color: var(--text-secondary);
 }
 
@@ -266,7 +266,7 @@
 }
 
 .info-section.tip {
-  background: rgba(59, 130, 246, 0.1);
+  background: rgba(255, 255, 255, 0.04);
   margin: 0 -1.5rem -1.5rem;
   padding: 1rem 1.5rem;
   border-radius: 0 0 16px 16px;
@@ -274,7 +274,7 @@
 }
 
 .info-section.tip h4 {
-  color: var(--accent-primary);
+  color: var(--text-primary);
 }
 
 /* Chart Tooltip */
@@ -341,7 +341,7 @@
 .benchmark-note {
   margin: 1rem 0 0;
   padding: 0.75rem 1rem;
-  background: rgba(59, 130, 246, 0.1);
+  background: rgba(255, 255, 255, 0.04);
   border-radius: 8px;
   font-size: 0.85rem;
   color: var(--text-muted);

@@ -12,7 +12,7 @@ console.log('📡 Final API_BASE_URL:', API_BASE_URL);
 // Frontend never directly calls third-party APIs
 
 export const DEFAULT_ASSET = { name: '', type: 'Stock', quantity: '', costBasis: '' };
-export const ASSET_COLORS = ['#5B8DEF', '#F2A541', '#3FC1C9', '#E05D5D', '#7B7EF6', '#50C878'];
+export const ASSET_COLORS = ['#CCCCCC', '#D4A84B', '#7DAFB5', '#C97070', '#9B9BD4', '#78B892'];
 
 // Supported asset types:
 // - Stock: US stocks via Finnhub API

@@ -146,19 +146,19 @@ export const HistoryChart = ({ lineSeries }) => {
                 <stop offset="95%" stopColor={isPositive ? "#10b981" : "#ef4444"} stopOpacity={0}/>
               </linearGradient>
             </defs>
-            <CartesianGrid 
-              strokeDasharray="3 3" 
-              stroke="#334155" 
+            <CartesianGrid
+              strokeDasharray="3 3"
+              stroke="#1A1A1A"
               strokeOpacity={0.4}
               horizontal={true}
               vertical={false}
             />
-            <XAxis 
-              dataKey="fullDate" 
-              stroke="#64748b" 
-              tick={{ fill: '#64748b', fontSize: 11 }} 
+            <XAxis
+              dataKey="fullDate"
+              stroke="#444444"
+              tick={{ fill: '#444444', fontSize: 11 }}
               tickLine={false}
-              axisLine={{ stroke: '#475569', strokeWidth: 1.5 }}
+              axisLine={{ stroke: '#2A2A2A', strokeWidth: 1.5 }}
               angle={-45}
               textAnchor="end"
               height={70}
@@ -168,11 +168,11 @@ export const HistoryChart = ({ lineSeries }) => {
               }}
               interval={filteredData.length <= 7 ? 0 : Math.ceil(filteredData.length / 6)}
             />
-            <YAxis 
-              stroke="#64748b" 
-              tick={{ fill: '#64748b', fontSize: 11 }}
+            <YAxis
+              stroke="#444444"
+              tick={{ fill: '#444444', fontSize: 11 }}
               tickLine={true}
-              axisLine={{ stroke: '#475569', strokeWidth: 1.5 }}
+              axisLine={{ stroke: '#2A2A2A', strokeWidth: 1.5 }}
               tickFormatter={(value) => {
                 if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
                 if (value >= 1000) return `$${(value / 1000).toFixed(1)}K`;
@@ -185,36 +185,36 @@ export const HistoryChart = ({ lineSeries }) => {
               formatter={(value) => [currency(value), 'Value']}
               labelFormatter={(label) => {
                 const date = new Date(label);
-                return date.toLocaleDateString('en-US', { 
+                return date.toLocaleDateString('en-US', {
                   weekday: 'short',
-                  month: 'short', 
-                  day: 'numeric', 
-                  year: 'numeric', 
-                  timeZone: 'UTC' 
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                  timeZone: 'UTC'
                 });
               }}
-              contentStyle={{ 
-                backgroundColor: 'rgba(15, 23, 42, 0.95)', 
-                border: '1px solid #334155',
+              contentStyle={{
+                backgroundColor: 'rgba(10, 10, 10, 0.95)',
+                border: '1px solid #1A1A1A',
                 borderRadius: '8px',
                 boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.3)',
                 padding: '10px 14px'
               }}
-              labelStyle={{ color: '#e2e8f0', fontWeight: '600', marginBottom: '4px' }}
+              labelStyle={{ color: '#FFFFFF', fontWeight: '600', marginBottom: '4px' }}
               itemStyle={{ color: isPositive ? '#10b981' : '#ef4444' }}
-              cursor={{ stroke: '#475569', strokeDasharray: '4 4' }}
+              cursor={{ stroke: '#2A2A2A', strokeDasharray: '4 4' }}
             />
-            <Area 
-              type="monotone" 
-              dataKey="value" 
+            <Area
+              type="monotone"
+              dataKey="value"
               stroke={isPositive ? "#10b981" : "#ef4444"}
               strokeWidth={2}
               fill="url(#colorValue)"
               dot={false}
-              activeDot={{ 
-                fill: isPositive ? "#10b981" : "#ef4444", 
-                r: 5, 
-                stroke: '#0f172a',
+              activeDot={{
+                fill: isPositive ? "#10b981" : "#ef4444",
+                r: 5,
+                stroke: '#000000',
                 strokeWidth: 2
               }}
             />

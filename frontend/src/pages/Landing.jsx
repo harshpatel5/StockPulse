@@ -101,9 +101,9 @@ const Landing = () => {
   const opacity = useTransform(scrollYProgress, [0, 0.5], [1, 0]);
 
   const fadeInUp = {
-    initial: { opacity: 0, y: 60 },
+    initial: { opacity: 0, y: 20 },
     animate: { opacity: 1, y: 0 },
-    transition: { duration: 0.6, ease: "easeOut" }
+    transition: { duration: 0.5, ease: "easeOut" }
   };
 
   const staggerContainer = {
@@ -167,17 +167,13 @@ const Landing = () => {
 
       {/* Hero Section */}
       <section ref={heroRef} className="hero-section">
-        <div className="hero-bg">
-          <div className="hero-glow-1" />
-          <div className="hero-glow-2" />
-        </div>
-        <div className="hero-grid" />
+        <div className="hero-bg" />
 
         <motion.div style={{ y, opacity }} className="hero-content">
           <motion.div
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
+            transition={{ duration: 0.5 }}
           >
             <span className="hero-badge">The smarter way to track your wealth</span>
           </motion.div>
@@ -234,10 +230,10 @@ const Landing = () => {
       <section id="features" className="features-section">
         <div className="features-container">
           <motion.div 
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
+            transition={{ duration: 0.5 }}
             className="features-header"
           >
             <h2 className="features-title">
@@ -276,10 +272,10 @@ const Landing = () => {
       <section className="showcase-section">
         <div className="showcase-container">
           <motion.div 
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
+            transition={{ duration: 0.5 }}
             className="showcase-header"
           >
             <h2 className="showcase-title">
@@ -292,10 +288,10 @@ const Landing = () => {
 
           {/* Dashboard Overview */}
           <motion.div
-            initial={{ opacity: 0, y: 40 }}
+            initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.7 }}
+            transition={{ duration: 0.5 }}
             className="showcase-item"
           >
             <div className="showcase-content-left">
@@ -328,10 +324,10 @@ const Landing = () => {
 
           {/* Allocation Chart */}
           <motion.div
-            initial={{ opacity: 0, y: 40 }}
+            initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.7 }}
+            transition={{ duration: 0.5 }}
             className="showcase-item showcase-item-reverse"
           >
             <div className="showcase-image-container">
@@ -364,10 +360,10 @@ const Landing = () => {
 
           {/* Historical Chart */}
           <motion.div
-            initial={{ opacity: 0, y: 40 }}
+            initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.7 }}
+            transition={{ duration: 0.5 }}
             className="showcase-item"
           >
             <div className="showcase-content-left">
@@ -400,10 +396,10 @@ const Landing = () => {
 
           {/* Benchmark Comparison */}
           <motion.div
-            initial={{ opacity: 0, y: 40 }}
+            initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.7 }}
+            transition={{ duration: 0.5 }}
             className="showcase-item showcase-item-reverse"
           >
             <div className="showcase-image-container">
@@ -436,10 +432,10 @@ const Landing = () => {
 
           {/* Holdings List */}
           <motion.div
-            initial={{ opacity: 0, y: 40 }}
+            initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.7 }}
+            transition={{ duration: 0.5 }}
             className="showcase-item"
           >
             <div className="showcase-content-left">
@@ -472,10 +468,10 @@ const Landing = () => {
 
           {/* Add Asset Form */}
           <motion.div
-            initial={{ opacity: 0, y: 40 }}
+            initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.7 }}
+            transition={{ duration: 0.5 }}
             className="showcase-item showcase-item-reverse"
           >
             <div className="showcase-image-container">

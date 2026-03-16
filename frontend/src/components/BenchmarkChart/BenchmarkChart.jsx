@@ -239,11 +239,11 @@ export const BenchmarkChart = ({ token }) => {
             data={filteredData}
             margin={{ top: 20, right: 30, left: 10, bottom: 5 }}
           >
-            <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
+            <CartesianGrid strokeDasharray="3 3" stroke="#1A1A1A" />
             <XAxis
               dataKey="date"
-              stroke="#94a3b8"
-              tick={{ fill: '#94a3b8', fontSize: 11 }}
+              stroke="#666666"
+              tick={{ fill: '#666666', fontSize: 11 }}
               tickFormatter={formatDate}
               tickLine={false}
               angle={-45}
@@ -252,12 +252,12 @@ export const BenchmarkChart = ({ token }) => {
               interval={filteredData.length <= 7 ? 0 : Math.ceil(filteredData.length / 5)}
             />
             <YAxis
-              stroke="#94a3b8"
-              tick={{ fill: '#94a3b8', fontSize: 11 }}
+              stroke="#666666"
+              tick={{ fill: '#666666', fontSize: 11 }}
               tickFormatter={(value) => `${value}%`}
               domain={yDomain}
             />
-            <ReferenceLine y={0} stroke="#475569" strokeDasharray="3 3" />
+            <ReferenceLine y={0} stroke="#2A2A2A" strokeDasharray="3 3" />
             <Tooltip content={<ChartTooltip />} />
             <Legend
               verticalAlign="top"
