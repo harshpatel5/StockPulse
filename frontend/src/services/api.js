@@ -195,6 +195,19 @@ export const fetchBenchmarkComparison = async (token) => {
 
 
 // ========================================
+// MONTE CARLO RISK SIMULATION
+// ========================================
+
+export const fetchMonteCarloSimulation = async (token, livePrices = {}, timeframeDays = 90) => {
+  return apiCall(`${API_BASE_URL}/portfolio/monte-carlo`, {
+    method: 'POST',
+    headers: getAuthHeaders(token),
+    body: JSON.stringify({ prices: livePrices, timeframe_days: timeframeDays }),
+  });
+};
+
+
+// ========================================
 // USER ENDPOINT
 // ========================================
 

@@ -10,6 +10,7 @@ import { StatsCards } from './components/StatsCards';
 import { AllocationChart } from './components/AllocationChart';
 import { HistoryChart } from './components/HistoryChart';
 import { BenchmarkChart } from './components/BenchmarkChart';
+import { MonteCarloChart } from './components/MonteCarloChart';
 import { AssetForm } from './components/AssetForm';
 import { AssetList } from './components/AssetList';
 import { LoadingSpinner } from './components/LoadingSpinner';
@@ -144,6 +145,11 @@ const Dashboard = () => {
       {/* Portfolio vs S&P 500 Comparison */}
       <section className="benchmark-section">
         <BenchmarkChart token={token} />
+      </section>
+
+      {/* Monte Carlo Risk Simulation */}
+      <section className="benchmark-section">
+        <MonteCarloChart token={token} livePrices={livePrices} />
       </section>
 
       <section className="content-grid">

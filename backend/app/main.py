@@ -23,6 +23,7 @@ from app import redis_cache
 import requests
 import os
 import logging
+import numpy as np
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # Setup logging
@@ -899,6 +900,218 @@ def create_app(config_class=Config):
             
         except Exception as e:
             return jsonify({"message": f"Error fetching comparison: {str(e)}"}), 500
+
+    # -------------------------------------------------------------------------
+    # MONTE CARLO RISK SIMULATION
+    # -------------------------------------------------------------------------
+
+    def _fetch_yahoo_history(symbol, asset_type, days=365):
+        """Fetch historical daily closes from Yahoo Finance for a single ticker."""
+        try:
+            # Map crypto symbols to Yahoo Finance format
+            if asset_type.lower() == 'crypto':
+                yahoo_symbol = f"{symbol}-USD"
+            else:
+                yahoo_symbol = symbol
+
+            end_ts = int(datetime.now(timezone.utc).timestamp())
+            start_ts = end_ts - (days * 86400)
+
+            url = (
+                f"https://query1.finance.yahoo.com/v8/finance/chart/{yahoo_symbol}"
+                f"?period1={start_ts}&period2={end_ts}&interval=1d"
+            )
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
+            resp = requests.get(url, headers=headers, timeout=10)
+            resp.raise_for_status()
+            data = resp.json()
+
+            result = data.get('chart', {}).get('result', [])
+            if not result:
+                return None
+
+            closes = result[0].get('indicators', {}).get('quote', [{}])[0].get('close', [])
+            # Filter out None values
+            prices = [c for c in closes if c is not None]
+            return prices if len(prices) >= 20 else None
+        except Exception as e:
+            logger.warning(f"Failed to fetch Yahoo history for {symbol}: {e}")
+            return None
+
+    @app.route('/api/portfolio/monte-carlo', methods=['POST'])
+    @limiter.limit("10 per minute")
+    @token_required
+    def run_monte_carlo(current_user):
+        """
+        Run Monte Carlo simulation on the user's portfolio.
+
+        Request body: {
+            "prices": {"AAPL": 150.25, "BTC": 42000, ...},
+            "timeframe_days": 90
+        }
+        """
+        try:
+            data = request.get_json() or {}
+            live_prices = data.get('prices', {})
+            timeframe_days = data.get('timeframe_days', 90)
+
+            # Validate timeframe
+            if timeframe_days not in (30, 90, 252):
+                timeframe_days = 90
+
+            # Get user assets
+            assets = Asset.query.filter_by(user_id=current_user.id).all()
+
+            if not assets:
+                return jsonify({"message": "No assets in portfolio"}), 200
+
+            # Build portfolio: symbol -> (weight based on current value, asset_type)
+            asset_info = []
+            total_value = 0
+
+            for asset in assets:
+                symbol = asset.name.strip().upper()
+                quantity = float(asset.quantity)
+                cost_basis = float(asset.cost_basis)
+                avg_price = cost_basis / quantity if quantity > 0 else 0
+                current_price = live_prices.get(symbol, avg_price)
+                value = current_price * quantity
+                total_value += value
+                asset_info.append({
+                    'symbol': symbol,
+                    'asset_type': asset.asset_type or 'Stock',
+                    'value': value,
+                })
+
+            if total_value <= 0:
+                return jsonify({"message": "Portfolio value is zero"}), 200
+
+            # Calculate weights
+            for a in asset_info:
+                a['weight'] = a['value'] / total_value
+
+            # Fetch historical prices in parallel
+            historical = {}
+            with ThreadPoolExecutor(max_workers=5) as executor:
+                future_map = {
+                    executor.submit(
+                        _fetch_yahoo_history,
+                        a['symbol'],
+                        a['asset_type'],
+                        400  # ~1.1 years to ensure enough trading days
+                    ): a['symbol']
+                    for a in asset_info
+                }
+                for future in as_completed(future_map):
+                    sym = future_map[future]
+                    try:
+                        result = future.result()
+                        if result is not None:
+                            historical[sym] = result
+                    except Exception as e:
+                        logger.warning(f"History fetch failed for {sym}: {e}")
+
+            # Filter to assets that have historical data
+            included = [a for a in asset_info if a['symbol'] in historical]
+            excluded = [a['symbol'] for a in asset_info if a['symbol'] not in historical]
+
+            if not included:
+                return jsonify({
+                    "message": "Could not fetch historical data for any assets",
+                    "assets_excluded": excluded,
+                }), 200
+
+            # Recalculate weights for included assets only
+            included_value = sum(a['value'] for a in included)
+            weights = np.array([a['value'] / included_value for a in included])
+
+            # Build daily log-returns matrix
+            # Trim all to the same length (shortest series)
+            min_len = min(len(historical[a['symbol']]) for a in included)
+            price_matrix = np.column_stack([
+                np.array(historical[a['symbol']][-min_len:]) for a in included
+            ])
+
+            # Daily log returns
+            log_returns = np.diff(np.log(price_matrix), axis=0)
+
+            # Mean daily returns and covariance
+            mean_returns = np.mean(log_returns, axis=0)
+            cov_matrix = np.cov(log_returns, rowvar=False)
+
+            # Ensure covariance matrix is 2D (single asset case)
+            if cov_matrix.ndim == 0:
+                cov_matrix = np.array([[float(cov_matrix)]])
+            elif cov_matrix.ndim == 1:
+                cov_matrix = cov_matrix.reshape(1, 1)
+
+            # Cholesky decomposition for correlated random walks
+            try:
+                L = np.linalg.cholesky(cov_matrix)
+            except np.linalg.LinAlgError:
+                # Regularize if not positive-definite
+                L = np.linalg.cholesky(
+                    cov_matrix + np.eye(len(cov_matrix)) * 1e-8
+                )
+
+            # Run simulation
+            num_sims = 10000
+            num_days = timeframe_days
+            num_assets = len(included)
+
+            portfolio_values = np.zeros((num_sims, num_days + 1))
+            portfolio_values[:, 0] = total_value
+
+            for t in range(1, num_days + 1):
+                Z = np.random.standard_normal((num_sims, num_assets))
+                correlated = Z @ L.T
+                daily_return = np.exp(
+                    np.sum(weights * (mean_returns + correlated), axis=1)
+                )
+                portfolio_values[:, t] = portfolio_values[:, t - 1] * daily_return
+
+            # Extract percentile paths
+            p5 = np.percentile(portfolio_values, 5, axis=0)
+            p25 = np.percentile(portfolio_values, 25, axis=0)
+            p50 = np.percentile(portfolio_values, 50, axis=0)
+            p75 = np.percentile(portfolio_values, 75, axis=0)
+            p95 = np.percentile(portfolio_values, 95, axis=0)
+
+            # Final day statistics
+            final = portfolio_values[:, -1]
+            var_95 = total_value - float(np.percentile(final, 5))
+            expected_value = float(np.mean(final))
+            expected_return_pct = ((expected_value - total_value) / total_value) * 100
+
+            return jsonify({
+                "paths": {
+                    "p5": [round(v, 2) for v in p5.tolist()],
+                    "p25": [round(v, 2) for v in p25.tolist()],
+                    "p50": [round(v, 2) for v in p50.tolist()],
+                    "p75": [round(v, 2) for v in p75.tolist()],
+                    "p95": [round(v, 2) for v in p95.tolist()],
+                },
+                "stats": {
+                    "current_value": round(total_value, 2),
+                    "expected_value": round(expected_value, 2),
+                    "expected_return_pct": round(expected_return_pct, 2),
+                    "var_95": round(var_95, 2),
+                    "var_95_pct": round((var_95 / total_value) * 100, 2),
+                    "median_final": round(float(p50[-1]), 2),
+                    "best_case": round(float(np.percentile(final, 95)), 2),
+                    "worst_case": round(float(np.percentile(final, 5)), 2),
+                },
+                "timeframe_days": num_days,
+                "num_simulations": num_sims,
+                "assets_included": [a['symbol'] for a in included],
+                "assets_excluded": excluded,
+            }), 200
+
+        except Exception as e:
+            logger.error(f"Monte Carlo simulation error: {e}")
+            return jsonify({"message": f"Simulation error: {str(e)}"}), 500
 
     # -------------------------------------------------------------------------
     # ERROR HANDLERS

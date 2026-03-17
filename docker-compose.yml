@@ -19,6 +19,19 @@ services:
       timeout: 5s
       retries: 5
 
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: stockpulse-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   # Flask Backend API
   backend:
     build:
@@ -31,12 +44,15 @@ services:
       SECRET_KEY: ${SECRET_KEY:-dev-secret-key-change-in-production}
       DEBUG: ${DEBUG:-True}
       FINNHUB_KEY: ${FINNHUB_KEY:-}
+      REDIS_URL: redis://redis:6379/0
     volumes:
       - ./backend:/app
     ports:
       - "5000:5000"
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     command: python -m app.main
 
