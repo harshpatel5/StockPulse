@@ -185,6 +185,23 @@
   margin: 0;
 }
 
+/* Info modal overrides */
+.mc-info-modal {
+  max-height: 85vh;
+}
+
+.mc-info-modal ol.mc-steps {
+  margin: 0.5rem 0 0;
+  padding-left: 1.25rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.8;
+}
+
+.mc-info-modal ol.mc-steps li {
+  margin-bottom: 0.35rem;
+}
+
 /* Responsive */
 @media (max-width: 640px) {
   .mc-header {

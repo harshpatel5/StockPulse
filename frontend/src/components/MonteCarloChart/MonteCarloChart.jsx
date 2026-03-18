@@ -10,12 +10,13 @@ import {
   Tooltip,
   ReferenceLine,
 } from 'recharts';
-import { Shuffle, TrendingUp } from 'lucide-react';
+import { Shuffle, TrendingUp, Info } from 'lucide-react';
 import { fetchMonteCarloSimulation } from '../../services/api';
 import { dedupeRequest } from '../../utils/requestDeduplication';
 
 import { RiskStats } from './RiskStats';
 import { MonteCarloTooltip } from './MonteCarloTooltip';
+import { InfoModal } from './InfoModal';
 import './MonteCarloChart.css';
 
 const TIMEFRAME_OPTIONS = [
@@ -29,6 +30,7 @@ export const MonteCarloChart = ({ token, livePrices }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [timeframe, setTimeframe] = useState(90);
+  const [showInfo, setShowInfo] = useState(false);
   const hasFetchedRef = useRef(false);
   const lastParamsRef = useRef(null);
 
@@ -114,11 +116,20 @@ export const MonteCarloChart = ({ token, livePrices }) => {
 
   return (
     <article className="card mc-card">
+      <InfoModal isOpen={showInfo} onClose={() => setShowInfo(false)} />
+
       {/* Header */}
       <div className="mc-header">
         <div className="card-head">
           <Shuffle size={18} />
           <span>Monte Carlo Risk Simulation</span>
+          <button
+            className="info-btn"
+            onClick={() => setShowInfo(true)}
+            title="What is Monte Carlo?"
+          >
+            <Info size={16} />
+          </button>
         </div>
 
         <div className="timeframe-selector compact">
