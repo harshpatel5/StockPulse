@@ -232,49 +232,17 @@ pytest test/
 
 ## 🌐 Deployment
 
-### **Recommended: AWS (12-month free tier)**
+
 1. **EC2** for backend (t2.micro)
-2. **RDS PostgreSQL** (db.t3.micro)
+2. **Render Database** 
 3. **S3 + CloudFront** for frontend static files
 
-### **Alternative: Fly.io (Free forever)**
-- Deploy backend as Docker container
-- Use Fly.io Postgres (1GB free)
-- Frontend on Vercel/Netlify
-
 ---
 
-## 📸 Screenshots
-
-### Dashboard Overview
-![Dashboard](docs/screenshots/dashboard-overview.png)
-
-### Portfolio Allocation
-![Allocation](docs/screenshots/allocation-chart.png)
-
-### Historical Performance
-![History](docs/screenshots/history-chart.png)
-
-### Benchmark Comparison
-![Benchmark](docs/screenshots/benchmark-chart.png)
-
-### Add New Asset
-![Add Asset](docs/screenshots/add-asset.png)
-
-### Holdings List
-![Holdings](docs/screenshots/holdings-list.png)
-
----
 
 ## 🤝 Contributing
 
 Pull requests are welcome! For major changes, please open an issue first to discuss what you would like to change.
-
----
-
-## 📝 License
-
-This project is licensed under the MIT License.
 
 ---
 
