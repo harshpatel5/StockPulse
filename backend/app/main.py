@@ -9,16 +9,17 @@ from app.config import Config
 from sqlalchemy import exc, func
 from datetime import date, datetime, timedelta, timezone
 from app.scheduler import (
-    fetch_live_price, 
-    fetch_crypto_price, 
-    search_crypto, 
-    calculate_user_portfolio_value, 
+    fetch_live_price,
+    fetch_crypto_price,
+    search_crypto,
+    calculate_user_portfolio_value,
     generate_portfolio_chart_data,
     get_last_weekday_date,
     init_scheduler,
     FINNHUB_KEY,
     FINNHUB_KEY_PLACEHOLDER
 )
+from app import redis_cache
 import requests
 import os
 import logging
@@ -375,9 +376,60 @@ def create_app(config_class=Config):
             return jsonify({"message": f"Error fetching history: {str(e)}"}), 500
 
     # -------------------------------------------------------------------------
+    # CACHED PRICES (Redis - single call for all prices)
+    # -------------------------------------------------------------------------
+
+    @app.route('/api/prices/cached', methods=['GET'])
+    @limiter.limit("200 per hour")
+    @token_required
+    def get_cached_prices(current_user):
+        """
+        Return ALL cached prices from Redis in one call.
+        Frontend calls this once on login instead of individual API calls.
+        """
+        try:
+            # Get all the user's asset symbols
+            assets = Asset.query.filter_by(user_id=current_user.id).all()
+            if not assets:
+                return jsonify({"prices": {}, "source": "cache", "last_refresh": None}), 200
+
+            # Build list of Redis keys to fetch
+            symbols = []
+            for asset in assets:
+                symbol = asset.name.strip().upper()
+                asset_type = (asset.asset_type or 'stock').lower()
+                if asset_type in ('stock', 'etf'):
+                    symbols.append(f"stock:{symbol}")
+                elif asset_type == 'crypto':
+                    symbols.append(f"crypto:{symbol}")
+
+            # Batch get from Redis
+            cached = redis_cache.get_all_prices(symbols)
+
+            # Map back to plain symbol names for frontend
+            prices = {}
+            for key, price in cached.items():
+                # key is like "stock:AAPL" or "crypto:BTC" — extract the symbol
+                symbol = key.split(":", 1)[1] if ":" in key else key
+                prices[symbol] = price
+
+            last_refresh = redis_cache.get_last_refresh_time()
+            last_refresh_iso = last_refresh.isoformat() if last_refresh else None
+
+            return jsonify({
+                "prices": prices,
+                "source": "cache",
+                "last_refresh": last_refresh_iso
+            }), 200
+
+        except Exception as e:
+            logger.warning(f"Failed to get cached prices: {e}")
+            return jsonify({"prices": {}, "source": "cache", "last_refresh": None}), 200
+
+    # -------------------------------------------------------------------------
     # PRICE ROUTES (Proxy to Finnhub - keeps API key server-side)
     # -------------------------------------------------------------------------
-    
+
     @app.route('/api/prices/quote/<symbol>', methods=['GET'])
     @limiter.limit("60 per minute")  # Allow frequent price checks
     @token_required

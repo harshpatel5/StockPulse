@@ -23,3 +23,8 @@ class Config:
     
     # Debug mode (False in production)
     DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
+
+    # Redis configuration
+    REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
+    PRICE_CACHE_TTL = int(os.environ.get('PRICE_CACHE_TTL', 600))  # 10 min TTL
+    PRICE_REFRESH_INTERVAL = int(os.environ.get('PRICE_REFRESH_INTERVAL', 300))  # 5 min
