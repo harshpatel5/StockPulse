@@ -167,7 +167,18 @@ export const useAssets = (token) => {
 
   const removeAsset = async (assetId) => {
     if (!token || !assetId) return;
-    await deleteAsset(token, assetId);
+    // Compute current market value for accurate cash flow tracking
+    const asset = assets.find(a => a.id === assetId);
+    let currentValue = null;
+    if (asset) {
+      const quantity = toNumber(asset.quantity);
+      const costBasis = toNumber(asset.cost_basis ?? asset.costBasis);
+      const avgPrice = quantity ? costBasis / quantity : 0;
+      const symbolKey = asset.name?.trim().toUpperCase();
+      const currentPrice = livePrices[symbolKey] ?? avgPrice;
+      currentValue = currentPrice * quantity;
+    }
+    await deleteAsset(token, assetId, currentValue);
     await loadAssets();
   };
 

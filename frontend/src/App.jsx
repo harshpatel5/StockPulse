@@ -10,6 +10,7 @@ import { StatsCards } from './components/StatsCards';
 import { AllocationChart } from './components/AllocationChart';
 import { HistoryChart } from './components/HistoryChart';
 import { BenchmarkChart } from './components/BenchmarkChart';
+import { MonteCarloChart } from './components/MonteCarloChart';
 import { AssetForm } from './components/AssetForm';
 import { AssetList } from './components/AssetList';
 import { LoadingSpinner } from './components/LoadingSpinner';
@@ -99,17 +100,17 @@ const Dashboard = () => {
   // This prevents showing cost basis values before live prices load
   if (fetchingAssets || !pricesLoaded) {
     return (
-      <>
+      <div className="dashboard-dark">
         <Navbar />
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 'calc(100vh - 60px)' }}>
           <div>Loading portfolio data...</div>
         </div>
-      </>
+      </div>
     );
   }
 
   return (
-    <>
+    <div className="dashboard-dark">
       <Navbar />
       <div className="app-shell">
         <Header
@@ -146,6 +147,11 @@ const Dashboard = () => {
         <BenchmarkChart token={token} />
       </section>
 
+      {/* Monte Carlo Risk Simulation */}
+      <section className="benchmark-section">
+        <MonteCarloChart token={token} livePrices={livePrices} />
+      </section>
+
       <section className="content-grid">
         <AssetForm
           formAsset={formAsset}
@@ -157,7 +163,7 @@ const Dashboard = () => {
         <AssetList assets={portfolioTotals.rows} onDelete={handleDeleteAsset} />
       </section>
       </div>
-    </>
+    </div>
   );
 };
 

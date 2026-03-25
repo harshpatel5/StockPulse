@@ -87,11 +87,15 @@ export const createAsset = async (token, assetData) => {
   });
 };
 
-export const deleteAsset = async (token, assetId) => {
-  return apiCall(`${API_BASE_URL}/assets/${assetId}`, {
+export const deleteAsset = async (token, assetId, currentValue = null) => {
+  const options = {
     method: 'DELETE',
-    headers: { Authorization: `Bearer ${token}` },
-  });
+    headers: getAuthHeaders(token),
+  };
+  if (currentValue !== null) {
+    options.body = JSON.stringify({ current_value: currentValue });
+  }
+  return apiCall(`${API_BASE_URL}/assets/${assetId}`, options);
 };
 
 
@@ -190,6 +194,19 @@ export const fetchPortfolioInsights = async (token, livePrices = {}) => {
 export const fetchBenchmarkComparison = async (token) => {
   return apiCall(`${API_BASE_URL}/benchmark/comparison`, {
     headers: { Authorization: `Bearer ${token}` },
+  });
+};
+
+
+// ========================================
+// MONTE CARLO RISK SIMULATION
+// ========================================
+
+export const fetchMonteCarloSimulation = async (token, livePrices = {}, timeframeDays = 90) => {
+  return apiCall(`${API_BASE_URL}/portfolio/monte-carlo`, {
+    method: 'POST',
+    headers: getAuthHeaders(token),
+    body: JSON.stringify({ prices: livePrices, timeframe_days: timeframeDays }),
   });
 };
 

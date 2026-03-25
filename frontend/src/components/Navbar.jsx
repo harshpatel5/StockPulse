@@ -1,12 +1,12 @@
-import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { TrendingUp, LogOut } from 'lucide-react';
+import { TrendingUp, LogOut, Menu } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
 export const Navbar = () => {
   const { user, isAuthenticated, handleLogout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+  const isLanding = location.pathname === '/';
 
   const onLogout = () => {
     handleLogout();
@@ -19,6 +19,16 @@ export const Navbar = () => {
         <TrendingUp size={28} />
         <span>StockPulse</span>
       </Link>
+
+      {isLanding && (
+        <div className="landing-nav-center">
+          <a href="#features" className="landing-nav-link">Features</a>
+        </div>
+      )}
+
+      <button className="hamburger-btn" aria-label="Open menu" onClick={() => {}}>
+        <Menu size={24} />
+      </button>
 
       <div className="nav-actions">
         {isAuthenticated ? (
@@ -36,13 +46,11 @@ export const Navbar = () => {
           </>
         ) : (
           <>
-            {location.pathname !== '/' && (
-              <Link to="/" className="btn ghost">
-                Home
-              </Link>
-            )}
-            <Link to="/login" className="btn primary">
-              Sign In
+            <Link to="/login" className="btn-nav-login">
+              Log in
+            </Link>
+            <Link to="/login" className="btn-nav-start">
+              Get started
             </Link>
           </>
         )}

@@ -312,7 +312,7 @@ def cleanup_old_snapshots(user_id, days=30):
 def generate_portfolio_chart_data(user_id, days=30):
     """
     Generate chart data from DB snapshots (last 30 days).
-    Forward-fills missing days with last known value.
+    Returns both raw values and cash-flow-adjusted growth series.
     """
     try:
         # Delete old snapshots first
@@ -331,10 +331,11 @@ def generate_portfolio_chart_data(user_id, days=30):
             PortfolioHistory.date <= end_datetime
         ).order_by(PortfolioHistory.date.asc()).all()
 
-        # New user with no history - return today's date at midnight UTC
+        # New user with no history
         if not cached_snapshots:
             today_midnight_utc = datetime.combine(today, datetime.min.time(), tzinfo=timezone.utc)
-            return [{"date": today_midnight_utc.isoformat(), "total_value": 0}]
+            empty_point = {"date": today_midnight_utc.isoformat(), "total_value": 0}
+            return {"raw": [empty_point], "growth": [{"date": today_midnight_utc.isoformat(), "value": 0}]}
 
         # Build dictionary of dates → values (extract date from datetime)
         history_dict = {snap.date.date(): snap.total_value for snap in cached_snapshots}
@@ -364,11 +365,72 @@ def generate_portfolio_chart_data(user_id, days=30):
 
             current_date += timedelta(days=1)
 
-        return chart_data
+        # Generate cash-flow-adjusted growth series
+        growth = generate_growth_series(user_id, chart_data, start_datetime, end_datetime)
+
+        return {"raw": chart_data, "growth": growth}
 
     except Exception as e:
         logger.error(f"Error generating chart data: {e}")
+        return {"raw": [], "growth": []}
+
+
+def generate_growth_series(user_id, raw_chart_data, start_datetime, end_datetime):
+    """
+    Build a cash-flow-adjusted growth line using Modified Dietz daily method.
+    Strips out capital inflows/outflows so the chart shows only market performance.
+    """
+    from app.models import CashFlow
+
+    if not raw_chart_data:
         return []
+
+    # Get all cash flows in date range
+    flows = CashFlow.query.filter(
+        CashFlow.user_id == user_id,
+        CashFlow.date >= start_datetime,
+        CashFlow.date <= end_datetime
+    ).order_by(CashFlow.date.asc()).all()
+
+    # Build date -> sum of cash flows dict
+    flow_dict = {}
+    for flow in flows:
+        d = flow.date.date()
+        flow_dict[d] = flow_dict.get(d, 0.0) + float(flow.amount)
+
+    # Build growth series from raw chart data
+    growth_series = []
+    growth_value = None
+    prev_day_value = None
+
+    for point in raw_chart_data:
+        date_str = point["date"]
+        today_value = float(point["total_value"])
+        current_date = datetime.fromisoformat(date_str).date()
+        today_flows = flow_dict.get(current_date, 0.0)
+
+        if growth_value is None:
+            # First day: initialize growth to actual value
+            growth_value = today_value
+        else:
+            # Calculate return excluding cash flows
+            if prev_day_value and prev_day_value > 0:
+                daily_return = (today_value - today_flows) / prev_day_value - 1.0
+                # Clamp extreme returns for safety
+                daily_return = max(-0.99, min(daily_return, 10.0))
+            else:
+                daily_return = 0.0
+
+            growth_value = growth_value * (1.0 + daily_return)
+
+        prev_day_value = today_value
+
+        growth_series.append({
+            "date": date_str,
+            "value": round(growth_value, 2)
+        })
+
+    return growth_series
 
 
 # =========================================================================
