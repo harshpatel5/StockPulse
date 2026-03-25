@@ -52,3 +52,6 @@ logs/
 htmlcov/
 .tox/
 .tx/
+
+# Claude Code
+.claude/
