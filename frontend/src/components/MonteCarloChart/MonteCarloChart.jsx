@@ -167,48 +167,48 @@ export const MonteCarloChart = ({ token, livePrices }) => {
           >
             <defs>
               <linearGradient id="mcBandOuter" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#32302f" stopOpacity={0.06} />
-                <stop offset="100%" stopColor="#32302f" stopOpacity={0.02} />
+                <stop offset="0%" stopColor="#06b6d4" stopOpacity={0.15} />
+                <stop offset="100%" stopColor="#06b6d4" stopOpacity={0.05} />
               </linearGradient>
               <linearGradient id="mcBandInner" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#32302f" stopOpacity={0.12} />
-                <stop offset="100%" stopColor="#32302f" stopOpacity={0.06} />
+                <stop offset="0%" stopColor="#06b6d4" stopOpacity={0.25} />
+                <stop offset="100%" stopColor="#06b6d4" stopOpacity={0.10} />
               </linearGradient>
             </defs>
 
             <CartesianGrid
               strokeDasharray="3 3"
-              stroke="#e4e2e1"
-              strokeOpacity={0.6}
+              stroke="#2a2a2a"
+              strokeOpacity={0.5}
               horizontal={true}
               vertical={false}
             />
             <XAxis
               dataKey="day"
-              stroke="#c9c6c4"
-              tick={{ fill: '#94908d', fontSize: 11 }}
+              stroke="#404040"
+              tick={{ fill: '#6b6b6b', fontSize: 11 }}
               tickLine={false}
-              axisLine={{ stroke: '#e4e2e1', strokeWidth: 1 }}
+              axisLine={{ stroke: '#2a2a2a', strokeWidth: 1 }}
               tickFormatter={(day) => `Day ${day}`}
               interval={Math.max(1, Math.ceil(chartData.length / 6))}
             />
             <YAxis
-              stroke="#c9c6c4"
-              tick={{ fill: '#94908d', fontSize: 11 }}
+              stroke="#404040"
+              tick={{ fill: '#6b6b6b', fontSize: 11 }}
               tickLine={false}
-              axisLine={{ stroke: '#e4e2e1', strokeWidth: 1 }}
+              axisLine={{ stroke: '#2a2a2a', strokeWidth: 1 }}
               tickFormatter={formatYAxis}
               domain={yDomain}
               width={55}
             />
             <ReferenceLine
               y={simData?.stats?.current_value}
-              stroke="#c9c6c4"
+              stroke="#404040"
               strokeDasharray="4 4"
               label={{
                 value: 'Current',
                 position: 'right',
-                fill: '#94908d',
+                fill: '#6b6b6b',
                 fontSize: 11,
               }}
             />
@@ -248,14 +248,14 @@ export const MonteCarloChart = ({ token, livePrices }) => {
             <Area
               type="monotone"
               dataKey="p50"
-              stroke="#32302f"
+              stroke="#06b6d4"
               strokeWidth={2}
               fill="none"
               dot={false}
               activeDot={{
-                fill: '#32302f',
+                fill: '#06b6d4',
                 r: 4,
-                stroke: '#ffffff',
+                stroke: '#1a1a1a',
                 strokeWidth: 2,
               }}
             />

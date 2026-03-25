@@ -87,11 +87,15 @@ export const createAsset = async (token, assetData) => {
   });
 };
 
-export const deleteAsset = async (token, assetId) => {
-  return apiCall(`${API_BASE_URL}/assets/${assetId}`, {
+export const deleteAsset = async (token, assetId, currentValue = null) => {
+  const options = {
     method: 'DELETE',
-    headers: { Authorization: `Bearer ${token}` },
-  });
+    headers: getAuthHeaders(token),
+  };
+  if (currentValue !== null) {
+    options.body = JSON.stringify({ current_value: currentValue });
+  }
+  return apiCall(`${API_BASE_URL}/assets/${assetId}`, options);
 };
 
 

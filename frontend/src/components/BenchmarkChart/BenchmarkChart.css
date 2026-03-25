@@ -265,3 +265,53 @@
   .timeframe-selector.compact { width: 100%; justify-content: space-between; }
   .timeframe-selector.compact .timeframe-btn { flex: 1; text-align: center; }
 }
+
+/* Dashboard dark overrides */
+.dashboard-dark .info-modal-overlay {
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.dashboard-dark .info-modal {
+  background: #1a1a1a;
+  border-color: #2a2a2a;
+}
+
+.dashboard-dark .info-modal-close {
+  background: #252525;
+  color: #a1a1a1;
+}
+
+.dashboard-dark .info-modal-close:hover {
+  background: #f87171;
+  color: white;
+}
+
+.dashboard-dark .info-section {
+  border-bottom-color: #2a2a2a;
+}
+
+.dashboard-dark .info-section.tip {
+  background: #252525;
+}
+
+.dashboard-dark .benchmark-tooltip {
+  background: #1a1a1a;
+  border-color: #2a2a2a;
+  filter: drop-shadow(0 0.16rem 0.16rem rgba(0, 0, 0, 0.3));
+}
+
+.dashboard-dark .timeframe-selector.compact .timeframe-btn.active {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.dashboard-dark .summary-item.portfolio {
+  border-left-color: #F59E0B;
+}
+
+.dashboard-dark .summary-item.sp500 {
+  border-left-color: #EF4444;
+}
+
+.dashboard-dark .summary-item.diff {
+  border-left-color: #e8e6e3;
+}

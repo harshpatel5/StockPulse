@@ -142,23 +142,23 @@ export const HistoryChart = ({ lineSeries }) => {
           <AreaChart data={filteredData} margin={{ top: 10, right: 20, left: 50, bottom: 50 }}>
             <defs>
               <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor={isPositive ? "#486635" : "#a43d12"} stopOpacity={0.15}/>
-                <stop offset="95%" stopColor={isPositive ? "#486635" : "#a43d12"} stopOpacity={0}/>
+                <stop offset="5%" stopColor={isPositive ? "#4ade80" : "#f87171"} stopOpacity={0.15}/>
+                <stop offset="95%" stopColor={isPositive ? "#4ade80" : "#f87171"} stopOpacity={0}/>
               </linearGradient>
             </defs>
             <CartesianGrid
               strokeDasharray="3 3"
-              stroke="#e4e2e1"
-              strokeOpacity={0.6}
+              stroke="#2a2a2a"
+              strokeOpacity={0.5}
               horizontal={true}
               vertical={false}
             />
             <XAxis
               dataKey="fullDate"
-              stroke="#c9c6c4"
-              tick={{ fill: '#94908d', fontSize: 11 }}
+              stroke="#404040"
+              tick={{ fill: '#6b6b6b', fontSize: 11 }}
               tickLine={false}
-              axisLine={{ stroke: '#e4e2e1', strokeWidth: 1 }}
+              axisLine={{ stroke: '#2a2a2a', strokeWidth: 1 }}
               angle={-45}
               textAnchor="end"
               height={70}
@@ -169,10 +169,10 @@ export const HistoryChart = ({ lineSeries }) => {
               interval={filteredData.length <= 7 ? 0 : Math.ceil(filteredData.length / 6)}
             />
             <YAxis
-              stroke="#c9c6c4"
-              tick={{ fill: '#94908d', fontSize: 11 }}
+              stroke="#404040"
+              tick={{ fill: '#6b6b6b', fontSize: 11 }}
               tickLine={false}
-              axisLine={{ stroke: '#e4e2e1', strokeWidth: 1 }}
+              axisLine={{ stroke: '#2a2a2a', strokeWidth: 1 }}
               tickFormatter={(value) => {
                 if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
                 if (value >= 1000) return `$${(value / 1000).toFixed(1)}K`;
@@ -194,27 +194,27 @@ export const HistoryChart = ({ lineSeries }) => {
                 });
               }}
               contentStyle={{
-                backgroundColor: '#ffffff',
-                border: '1px solid #e4e2e1',
+                backgroundColor: '#1a1a1a',
+                border: '1px solid #2a2a2a',
                 borderRadius: '0.75rem',
-                filter: 'drop-shadow(0 0.16rem 0.16rem rgba(16, 24, 40, 0.1))',
+                filter: 'drop-shadow(0 0.16rem 0.16rem rgba(0, 0, 0, 0.3))',
                 padding: '10px 14px'
               }}
-              labelStyle={{ color: '#32302f', fontWeight: '600', marginBottom: '4px' }}
-              itemStyle={{ color: isPositive ? '#486635' : '#a43d12' }}
-              cursor={{ stroke: '#c9c6c4', strokeDasharray: '4 4' }}
+              labelStyle={{ color: '#e8e6e3', fontWeight: '600', marginBottom: '4px' }}
+              itemStyle={{ color: isPositive ? '#4ade80' : '#f87171' }}
+              cursor={{ stroke: '#404040', strokeDasharray: '4 4' }}
             />
             <Area
               type="monotone"
               dataKey="value"
-              stroke={isPositive ? "#486635" : "#a43d12"}
+              stroke={isPositive ? "#4ade80" : "#f87171"}
               strokeWidth={2}
               fill="url(#colorValue)"
               dot={false}
               activeDot={{
-                fill: isPositive ? "#486635" : "#a43d12",
+                fill: isPositive ? "#4ade80" : "#f87171",
                 r: 5,
-                stroke: '#ffffff',
+                stroke: '#1a1a1a',
                 strokeWidth: 2
               }}
             />

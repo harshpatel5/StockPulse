@@ -1138,3 +1138,89 @@ body {
   color: var(--text-secondary) !important;
   font-size: 0.85rem;
 }
+
+/* =========================================================================
+   DASHBOARD DARK THEME
+   ========================================================================= */
+
+.dashboard-dark {
+  --bg-primary: #0f0f0f;
+  --bg-secondary: #1a1a1a;
+  --bg-tertiary: #252525;
+  --bg-card: #1a1a1a;
+  --bg-elevated: #222222;
+  --bg-linen: #1e1e1e;
+  --bg-linen-light: #141414;
+  --text-primary: #e8e6e3;
+  --text-secondary: #a1a1a1;
+  --text-muted: #6b6b6b;
+  --accent-primary: #e8e6e3;
+  --accent-hover: #cccccc;
+  --success: #4ade80;
+  --error: #f87171;
+  --warning: #fbbf24;
+  --border-color: #2a2a2a;
+  --border-active: #404040;
+  --border-light: #2a2a2a;
+
+  background: #0f0f0f;
+  min-height: 100vh;
+}
+
+/* Dashboard dark navbar */
+.dashboard-dark .landing-nav {
+  background: rgba(15, 15, 15, 0.92);
+  border-bottom-color: #2a2a2a;
+}
+
+.dashboard-dark .logo,
+.dashboard-dark .logo svg {
+  color: #e8e6e3;
+}
+
+.dashboard-dark .btn.ghost {
+  border-color: #e8e6e3;
+  color: #e8e6e3;
+}
+
+.dashboard-dark .btn.ghost:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.dashboard-dark .btn.primary {
+  background: #e8e6e3;
+  color: #0f0f0f;
+}
+
+.dashboard-dark .btn.primary:hover:not(:disabled) {
+  background: #cccccc;
+}
+
+.dashboard-dark .user-email {
+  color: #a1a1a1;
+}
+
+.dashboard-dark .hamburger-btn {
+  color: #e8e6e3;
+}
+
+.dashboard-dark .hamburger-btn:hover {
+  background: #252525;
+}
+
+/* Dashboard dark field inputs */
+.dashboard-dark .field input,
+.dashboard-dark .field select {
+  background: #252525;
+  border-color: #2a2a2a;
+  color: #e8e6e3;
+}
+
+.dashboard-dark .field input:focus,
+.dashboard-dark .field select:focus {
+  border-color: #e8e6e3;
+}
+
+.dashboard-dark .field input::placeholder {
+  color: #6b6b6b;
+}

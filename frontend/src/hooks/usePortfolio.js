@@ -51,28 +51,28 @@ export const usePortfolio = (assets, livePrices, history) => {
   }, [portfolioTotals]);
 
   const lineSeries = useMemo(() => {
-    if (!history.length) return [];
+    // Use growth series (cash-flow-adjusted) if available, fall back to raw or flat array
+    const series = history?.growth || history?.raw || (Array.isArray(history) ? history : []);
 
-    return history.map((entry) => {
-      // Parse ISO datetime string (handles both "YYYY-MM-DD" and "YYYY-MM-DDTHH:MM:SS+00:00")
-      // new Date() correctly parses ISO 8601 with timezone
+    if (!series.length) return [];
+
+    return series.map((entry) => {
       const dateObj = new Date(entry.date);
 
-      // Format date for display - use UTC to avoid timezone shift issues
       const formattedDate = dateObj.toLocaleDateString('en-US', {
         month: 'short',
         day: 'numeric',
-        year: history.length > 30 ? 'numeric' : undefined, // Show year if many data points
-        timeZone: 'UTC', // Force UTC display to match backend date
+        year: series.length > 30 ? 'numeric' : undefined,
+        timeZone: 'UTC',
       });
 
       return {
         date: formattedDate,
-        fullDate: entry.date, // Keep full date for sorting/grouping
-        value: parseFloat(entry.total_value) || 0,
-        timestamp: dateObj.getTime(), // For proper sorting
+        fullDate: entry.date,
+        value: parseFloat(entry.value ?? entry.total_value) || 0,
+        timestamp: dateObj.getTime(),
       };
-    }).sort((a, b) => a.timestamp - b.timestamp); // Ensure chronological order
+    }).sort((a, b) => a.timestamp - b.timestamp);
   }, [history]);
 
   const netChange = portfolioTotals.value - portfolioTotals.invested;

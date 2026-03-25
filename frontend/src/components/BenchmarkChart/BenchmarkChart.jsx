@@ -239,28 +239,28 @@ export const BenchmarkChart = ({ token }) => {
             data={filteredData}
             margin={{ top: 20, right: 30, left: 10, bottom: 5 }}
           >
-            <CartesianGrid strokeDasharray="3 3" stroke="#e4e2e1" strokeOpacity={0.6} />
+            <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" strokeOpacity={0.6} />
             <XAxis
               dataKey="date"
-              stroke="#c9c6c4"
-              tick={{ fill: '#94908d', fontSize: 11 }}
+              stroke="#404040"
+              tick={{ fill: '#6b6b6b', fontSize: 11 }}
               tickFormatter={formatDate}
               tickLine={false}
-              axisLine={{ stroke: '#e4e2e1', strokeWidth: 1 }}
+              axisLine={{ stroke: '#2a2a2a', strokeWidth: 1 }}
               angle={-45}
               textAnchor="end"
               height={60}
               interval={filteredData.length <= 7 ? 0 : Math.ceil(filteredData.length / 5)}
             />
             <YAxis
-              stroke="#c9c6c4"
-              tick={{ fill: '#94908d', fontSize: 11 }}
+              stroke="#404040"
+              tick={{ fill: '#6b6b6b', fontSize: 11 }}
               tickFormatter={(value) => `${value}%`}
               tickLine={false}
-              axisLine={{ stroke: '#e4e2e1', strokeWidth: 1 }}
+              axisLine={{ stroke: '#2a2a2a', strokeWidth: 1 }}
               domain={yDomain}
             />
-            <ReferenceLine y={0} stroke="#c9c6c4" strokeDasharray="3 3" />
+            <ReferenceLine y={0} stroke="#404040" strokeDasharray="3 3" />
             <Tooltip content={<ChartTooltip />} />
             <Legend
               verticalAlign="top"

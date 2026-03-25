@@ -100,17 +100,17 @@ const Dashboard = () => {
   // This prevents showing cost basis values before live prices load
   if (fetchingAssets || !pricesLoaded) {
     return (
-      <>
+      <div className="dashboard-dark">
         <Navbar />
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 'calc(100vh - 60px)' }}>
           <div>Loading portfolio data...</div>
         </div>
-      </>
+      </div>
     );
   }
 
   return (
-    <>
+    <div className="dashboard-dark">
       <Navbar />
       <div className="app-shell">
         <Header
@@ -163,7 +163,7 @@ const Dashboard = () => {
         <AssetList assets={portfolioTotals.rows} onDelete={handleDeleteAsset} />
       </section>
       </div>
-    </>
+    </div>
   );
 };
 

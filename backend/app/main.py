@@ -4,7 +4,7 @@ from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from app.auth import generate_token, token_required
-from app.models import db, User, Asset, PortfolioHistory
+from app.models import db, User, Asset, PortfolioHistory, CashFlow
 from app.config import Config
 from sqlalchemy import exc, func
 from datetime import date, datetime, timedelta, timezone
@@ -216,7 +216,19 @@ def create_app(config_class=Config):
                 
                 db.session.add(new_asset)
                 db.session.commit()
-                
+
+                # Record capital inflow
+                cash_flow = CashFlow(
+                    user_id=current_user.id,
+                    date=datetime.now(timezone.utc),
+                    amount=float(cost_basis),
+                    flow_type='add',
+                    asset_name=name,
+                    notes=f"Added {quantity} units of {name}"
+                )
+                db.session.add(cash_flow)
+                db.session.commit()
+
                 return jsonify({
                     "message": "Asset created successfully",
                     "asset": new_asset.to_dict()
@@ -251,7 +263,8 @@ def create_app(config_class=Config):
         elif request.method == 'PUT':
             try:
                 data = request.get_json()
-                
+                old_cost_basis = float(asset.cost_basis)
+
                 # Update fields if provided
                 if 'name' in data:
                     asset.name = data['name']
@@ -261,9 +274,23 @@ def create_app(config_class=Config):
                     asset.quantity = float(data['quantity'])
                 if 'cost_basis' in data:
                     asset.cost_basis = float(data['cost_basis'])
-                
+
                 db.session.commit()
-                
+
+                # Record capital flow if cost_basis changed
+                delta = float(asset.cost_basis) - old_cost_basis
+                if abs(delta) > 0.01:
+                    cash_flow = CashFlow(
+                        user_id=current_user.id,
+                        date=datetime.now(timezone.utc),
+                        amount=delta,
+                        flow_type='update',
+                        asset_name=asset.name,
+                        notes=f"Updated {asset.name}: cost_basis changed by {delta:+.2f}"
+                    )
+                    db.session.add(cash_flow)
+                    db.session.commit()
+
                 return jsonify({
                     "message": "Asset updated successfully",
                     "asset": asset.to_dict()
@@ -277,11 +304,25 @@ def create_app(config_class=Config):
         
         elif request.method == 'DELETE':
             try:
+                # Accept optional current_value for accurate outflow tracking
+                data = request.get_json() or {}
+                outflow_amount = float(data.get('current_value', asset.cost_basis))
+
+                # Record capital outflow before deleting
+                cash_flow = CashFlow(
+                    user_id=current_user.id,
+                    date=datetime.now(timezone.utc),
+                    amount=-outflow_amount,
+                    flow_type='remove',
+                    asset_name=asset.name,
+                    notes=f"Removed {asset.quantity} units of {asset.name}"
+                )
+                db.session.add(cash_flow)
                 db.session.delete(asset)
                 db.session.commit()
-                
+
                 return jsonify({"message": "Asset deleted successfully"}), 200
-                
+
             except exc.SQLAlchemyError as e:
                 db.session.rollback()
                 return jsonify({"message": f"Database error: {str(e)}"}), 500
@@ -757,67 +798,65 @@ def create_app(config_class=Config):
     @token_required
     def get_benchmark_comparison(current_user):
         """
-        Get portfolio vs S&P 500 performance comparison
-        Returns normalized percentage change from the earliest portfolio date
+        Get portfolio vs S&P 500 performance comparison.
+        Uses Time-Weighted Return (TWR) for portfolio to exclude cash flow impacts.
         """
         try:
             # Get user's portfolio history
             history = PortfolioHistory.query.filter_by(
                 user_id=current_user.id
             ).order_by(PortfolioHistory.date.asc()).all()
-            
+
             if not history or len(history) < 2:
                 return jsonify({
                     "message": "Need at least 2 days of portfolio history for comparison",
                     "data": []
                 }), 200
-            
-            # Get date range from portfolio history (extract date from datetime)
+
+            # Get date range
             start_date = history[0].date.date() if hasattr(history[0].date, 'date') else history[0].date
             end_date = history[-1].date.date() if hasattr(history[-1].date, 'date') else history[-1].date
             start_value = float(history[0].total_value)
-            
+
             if start_value <= 0:
                 return jsonify({
                     "message": "Invalid starting portfolio value",
                     "data": []
                 }), 200
-            
-            # Fetch S&P 500 (SPY) historical data from Yahoo Finance (free, no API key needed)
+
+            # Fetch S&P 500 (SPY) historical data from Yahoo Finance
             spy_data = {}
             try:
-                # Yahoo Finance API for historical data
-                # period1 and period2 are Unix timestamps
                 start_timestamp = int(datetime.combine(start_date, datetime.min.time()).timestamp())
-                end_timestamp = int(datetime.combine(end_date, datetime.max.time()).timestamp()) + 86400  # Add 1 day buffer
-                
+                end_timestamp = int(datetime.combine(end_date, datetime.max.time()).timestamp()) + 86400
+
                 yahoo_url = f"https://query1.finance.yahoo.com/v8/finance/chart/SPY?period1={start_timestamp}&period2={end_timestamp}&interval=1d"
-                
+
                 headers = {
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
                 }
-                
+
                 response = requests.get(yahoo_url, headers=headers, timeout=10)
                 response.raise_for_status()
-                
+
                 data = response.json()
-                
+
                 if data and 'chart' in data and 'result' in data['chart'] and data['chart']['result']:
                     result = data['chart']['result'][0]
                     timestamps = result.get('timestamp', [])
                     closes = result.get('indicators', {}).get('quote', [{}])[0].get('close', [])
-                    
+
                     for i, ts in enumerate(timestamps):
                         if i < len(closes) and closes[i] is not None:
                             date_str = datetime.fromtimestamp(ts, tz=timezone.utc).strftime('%Y-%m-%d')
                             spy_data[date_str] = closes[i]
-                    
+
                     logger.info(f"Fetched {len(spy_data)} days of SPY data from Yahoo Finance")
-                            
+
             except Exception as e:
                 logger.warning(f"Failed to fetch SPY data from Yahoo Finance: {str(e)}")
-            
-            # Get S&P 500 starting value (first available date)
+
+            # Get S&P 500 starting value
             spy_start_value = None
             for h in history:
                 h_date = h.date.date() if hasattr(h.date, 'date') else h.date
@@ -825,71 +864,88 @@ def create_app(config_class=Config):
                 if date_str in spy_data:
                     spy_start_value = spy_data[date_str]
                     break
-            
-            # Build comparison data - normalize both to percentage change
-            comparison_data = []
+
+            # Build value dict and forward-fill for all dates in range
+            value_dict = {}
             for h in history:
                 h_date = h.date.date() if hasattr(h.date, 'date') else h.date
-                date_str = h_date.strftime('%Y-%m-%d')
-                portfolio_value = float(h.total_value)
-                
-                # Calculate portfolio percentage change from start
-                portfolio_pct = ((portfolio_value - start_value) / start_value) * 100
-                
-                # Calculate S&P 500 percentage change from start
+                value_dict[h_date] = float(h.total_value)
+
+            # Get cash flows for TWR calculation
+            start_datetime = datetime.combine(start_date, datetime.min.time(), tzinfo=timezone.utc)
+            end_datetime = datetime.combine(end_date, datetime.max.time(), tzinfo=timezone.utc)
+
+            flows = CashFlow.query.filter(
+                CashFlow.user_id == current_user.id,
+                CashFlow.date >= start_datetime,
+                CashFlow.date <= end_datetime
+            ).order_by(CashFlow.date.asc()).all()
+
+            flow_dict = {}
+            for flow in flows:
+                d = flow.date.date()
+                flow_dict[d] = flow_dict.get(d, 0.0) + float(flow.amount)
+
+            # Iterate all dates, forward-fill values, compute cumulative TWR
+            all_dates = []
+            d = start_date
+            while d <= end_date:
+                all_dates.append(d)
+                d += timedelta(days=1)
+
+            filled_values = {}
+            last_val = 0
+            for d in all_dates:
+                if d in value_dict:
+                    last_val = value_dict[d]
+                filled_values[d] = last_val
+
+            # Compute cumulative TWR
+            cumulative_twr = 0.0  # starts at 0% return
+            prev_value = filled_values[all_dates[0]]
+            twr_by_date = {all_dates[0]: 0.0}
+
+            for i in range(1, len(all_dates)):
+                d = all_dates[i]
+                today_value = filled_values[d]
+                today_flow = flow_dict.get(d, 0.0)
+
+                if prev_value > 0:
+                    daily_return = (today_value - today_flow) / prev_value - 1.0
+                    daily_return = max(-0.99, min(daily_return, 10.0))
+                else:
+                    daily_return = 0.0
+
+                cumulative_twr = (1 + cumulative_twr) * (1 + daily_return) - 1
+                twr_by_date[d] = cumulative_twr
+                prev_value = today_value
+
+            # Build comparison data
+            comparison_data = []
+            for d in all_dates:
+                date_str = d.strftime('%Y-%m-%d')
+                portfolio_pct = twr_by_date.get(d, 0.0) * 100
+
                 spy_pct = None
                 if spy_start_value and date_str in spy_data:
                     spy_value = spy_data[date_str]
                     spy_pct = ((spy_value - spy_start_value) / spy_start_value) * 100
-                
+
                 comparison_data.append({
                     "date": date_str,
                     "portfolio": round(portfolio_pct, 2),
                     "sp500": round(spy_pct, 2) if spy_pct is not None else None,
-                    "portfolioValue": round(portfolio_value, 2)
+                    "portfolioValue": round(filled_values[d], 2)
                 })
-            
-            # Fill in missing S&P data with last known value
+
+            # Forward-fill missing S&P data
             last_spy = None
             for item in comparison_data:
                 if item["sp500"] is not None:
                     last_spy = item["sp500"]
                 elif last_spy is not None:
                     item["sp500"] = last_spy
-            
-            # Backfill missing dates between first and last history entry
-            if comparison_data:
-                from datetime import timedelta
-                
-                backfilled_data = []
-                current_date = start_date
-                comparison_dict = {d["date"]: d for d in comparison_data}
-                last_values = {"portfolio": None, "sp500": None}
-                
-                while current_date <= end_date:
-                    date_str = current_date.strftime('%Y-%m-%d')
-                    
-                    if date_str in comparison_dict:
-                        # Use actual data point
-                        item = comparison_dict[date_str]
-                        last_values["portfolio"] = item["portfolio"]
-                        if item["sp500"] is not None:
-                            last_values["sp500"] = item["sp500"]
-                        backfilled_data.append(item)
-                    else:
-                        # Backfill with last known values
-                        if last_values["portfolio"] is not None:
-                            backfilled_data.append({
-                                "date": date_str,
-                                "portfolio": last_values["portfolio"],
-                                "sp500": last_values["sp500"],
-                                "portfolioValue": None  # Not available for backfilled dates
-                            })
-                    
-                    current_date += timedelta(days=1)
-                
-                comparison_data = backfilled_data
-            
+
             return jsonify({
                 "data": comparison_data,
                 "start_date": datetime.combine(start_date, datetime.min.time(), tzinfo=timezone.utc).isoformat(),
@@ -897,7 +953,7 @@ def create_app(config_class=Config):
                 "portfolio_start": start_value,
                 "has_sp500_data": len(spy_data) > 0
             }), 200
-            
+
         except Exception as e:
             return jsonify({"message": f"Error fetching comparison: {str(e)}"}), 500
 
@@ -1064,11 +1120,15 @@ def create_app(config_class=Config):
             portfolio_values = np.zeros((num_sims, num_days + 1))
             portfolio_values[:, 0] = total_value
 
+            # Ito correction: subtract 0.5*variance per asset to remove
+            # upward bias from exp() (Jensen's inequality)
+            drift = mean_returns - 0.5 * np.diag(cov_matrix)
+
             for t in range(1, num_days + 1):
                 Z = np.random.standard_normal((num_sims, num_assets))
                 correlated = Z @ L.T
                 daily_return = np.exp(
-                    np.sum(weights * (mean_returns + correlated), axis=1)
+                    np.sum(weights * (drift + correlated), axis=1)
                 )
                 portfolio_values[:, t] = portfolio_values[:, t - 1] * daily_return
 

@@ -98,3 +98,33 @@ class PortfolioHistory(db.Model):
             "date": self.date.isoformat(),
             "total_value": self.total_value,
         }
+
+
+class CashFlow(db.Model):
+    """Records capital inflows and outflows (not market movements)."""
+    __tablename__ = 'cash_flows'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    date = db.Column(db.DateTime(timezone=True), nullable=False, index=True)
+    amount = db.Column(db.Float, nullable=False)  # positive=inflow, negative=outflow
+    flow_type = db.Column(db.String(20), nullable=False)  # 'add', 'remove', 'update'
+    asset_name = db.Column(db.String(100), nullable=True)
+    notes = db.Column(db.String(255), nullable=True)
+    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+    user = relationship("User", backref="cash_flows", lazy=True)
+
+    __table_args__ = (
+        db.Index('idx_cashflow_user_date', 'user_id', 'date'),
+    )
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "date": self.date.isoformat(),
+            "amount": self.amount,
+            "flow_type": self.flow_type,
+            "asset_name": self.asset_name,
+            "notes": self.notes,
+        }
