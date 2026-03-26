@@ -17,6 +17,7 @@ from app.scheduler import (
     get_last_weekday_date,
     init_scheduler,
     fetch_sectors_batch,
+    generate_recommendations,
     FINNHUB_KEY,
     FINNHUB_KEY_PLACEHOLDER
 )
@@ -1297,6 +1298,11 @@ def create_app(config_class=Config):
             sector_display = {k: round(v * 100, 1) for k, v in sector_weights.items()}
             class_display = {k: round(v * 100, 1) for k, v in class_weights.items()}
 
+            # --- Step 6: Generate recommendations ---
+            recommendations = generate_recommendations(
+                holdings, sector_weights, class_weights, final_score
+            )
+
             return jsonify({
                 "score": final_score,
                 "hhi": round(hhi, 4),
@@ -1308,6 +1314,7 @@ def create_app(config_class=Config):
                 "asset_class_count": asset_class_count,
                 "asset_classes": class_display,
                 "holdings_count": n,
+                "recommendations": recommendations,
             }), 200
 
         except Exception as e:

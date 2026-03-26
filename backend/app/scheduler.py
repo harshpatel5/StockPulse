@@ -228,6 +228,175 @@ def fetch_sectors_batch(symbols):
 
 
 # =========================================================================
+# DIVERSIFICATION RECOMMENDATIONS
+# =========================================================================
+
+# Map sectors to suggested ETFs for diversification
+SECTOR_ETF_MAP = {
+    'Technology': {'etfs': ['XLK', 'VGT'], 'name': 'Technology'},
+    'Financial Services': {'etfs': ['XLF', 'VFH'], 'name': 'Financials'},
+    'Healthcare': {'etfs': ['XLV', 'VHT'], 'name': 'Healthcare'},
+    'Energy': {'etfs': ['XLE', 'VDE'], 'name': 'Energy'},
+    'Consumer Cyclical': {'etfs': ['XLY', 'VCR'], 'name': 'Consumer Cyclical'},
+    'Consumer Defensive': {'etfs': ['XLP', 'VDC'], 'name': 'Consumer Defensive'},
+    'Industrials': {'etfs': ['XLI', 'VIS'], 'name': 'Industrials'},
+    'Utilities': {'etfs': ['XLU', 'VPU'], 'name': 'Utilities'},
+    'Real Estate': {'etfs': ['XLRE', 'VNQ'], 'name': 'Real Estate'},
+    'Communication Services': {'etfs': ['XLC', 'VOX'], 'name': 'Communication'},
+    'Basic Materials': {'etfs': ['XLB', 'VAW'], 'name': 'Materials'},
+}
+
+# All target sectors for a well-diversified portfolio
+ALL_SECTORS = set(SECTOR_ETF_MAP.keys())
+
+CONCENTRATION_THRESHOLD = 0.30  # 30% in one sector = over-concentrated
+MISSING_SECTOR_LIMIT = 4       # Suggest up to 4 missing sectors
+
+
+def generate_recommendations(holdings, sector_weights, class_weights, score):
+    """
+    Generate actionable portfolio recommendations based on diversification analysis.
+
+    Returns a list of recommendation dicts with type, message, and suggested action.
+    """
+    recommendations = []
+
+    # --- 1. Flag over-concentrated sectors ---
+    for sector, weight in sorted(sector_weights.items(), key=lambda x: x[1], reverse=True):
+        if weight >= CONCENTRATION_THRESHOLD and sector != 'Unknown':
+            pct = round(weight * 100, 1)
+            rec = {
+                "type": "concentration",
+                "severity": "high" if weight >= 0.50 else "medium",
+                "message": f"Portfolio is {pct}% in {sector} — consider reducing exposure",
+            }
+            # Suggest what to diversify into (pick a missing or low-weight sector)
+            underweight = [
+                s for s in ALL_SECTORS
+                if s != sector and sector_weights.get(s, 0) < 0.05
+            ]
+            if underweight:
+                suggestion = underweight[0]
+                etf_info = SECTOR_ETF_MAP.get(suggestion, {})
+                if etf_info:
+                    rec["suggestion"] = {
+                        "sector": suggestion,
+                        "etfs": etf_info['etfs'],
+                        "message": f"Consider adding {etf_info['etfs'][0]} for {etf_info['name']} exposure"
+                    }
+            recommendations.append(rec)
+
+    # --- 2. Suggest missing sectors ---
+    present_sectors = {s for s, w in sector_weights.items() if w > 0.01}
+    missing = ALL_SECTORS - present_sectors
+    missing_list = sorted(missing)[:MISSING_SECTOR_LIMIT]
+
+    for sector in missing_list:
+        etf_info = SECTOR_ETF_MAP.get(sector, {})
+        if etf_info:
+            recommendations.append({
+                "type": "missing_sector",
+                "severity": "low",
+                "message": f"No {etf_info['name']} exposure — {etf_info['etfs'][0]} is a low-cost option",
+                "suggestion": {
+                    "sector": sector,
+                    "etfs": etf_info['etfs'],
+                    "message": f"Add {etf_info['etfs'][0]} for {etf_info['name']} sector coverage"
+                }
+            })
+
+    # --- 3. Asset class balance ---
+    has_stocks = class_weights.get('Stock', 0) > 0 or class_weights.get('ETF', 0) > 0
+    has_crypto = class_weights.get('Crypto', 0) > 0
+
+    if has_stocks and not has_crypto:
+        recommendations.append({
+            "type": "asset_class",
+            "severity": "low",
+            "message": "Portfolio is 100% equities — a small crypto allocation (1-5%) could improve diversification",
+        })
+    elif has_crypto and not has_stocks:
+        recommendations.append({
+            "type": "asset_class",
+            "severity": "high",
+            "message": "Portfolio is 100% crypto — consider adding equity ETFs like VTI or SPY for stability",
+        })
+
+    crypto_weight = class_weights.get('Crypto', 0)
+    if crypto_weight > 0.20:
+        recommendations.append({
+            "type": "asset_class",
+            "severity": "medium",
+            "message": f"Crypto is {round(crypto_weight * 100, 1)}% of portfolio — high volatility risk, consider rebalancing to under 20%",
+        })
+
+    # --- 4. Single-asset risk ---
+    if len([h for h in holdings if h.get('weight', 0) > 0.01]) == 1:
+        recommendations.append({
+            "type": "concentration",
+            "severity": "high",
+            "message": "Portfolio has only 1 asset — any single stock can lose 50%+ in a downturn",
+        })
+    elif len([h for h in holdings if h.get('weight', 0) > 0.01]) <= 3:
+        recommendations.append({
+            "type": "concentration",
+            "severity": "medium",
+            "message": "Portfolio has very few holdings — consider adding 5-10 positions for better risk distribution",
+        })
+
+    return recommendations
+
+
+def calculate_correlation_matrix(holdings_with_history):
+    """
+    Calculate correlation matrix from historical price data.
+
+    Args:
+        holdings_with_history: list of {"symbol": str, "prices": [float]}
+
+    Returns:
+        dict with "symbols", "matrix" (2D list), and "avg_correlation" (float)
+        or None if insufficient data.
+    """
+    import numpy as np
+
+    if len(holdings_with_history) < 2:
+        return None
+
+    # Trim all to same length
+    min_len = min(len(h['prices']) for h in holdings_with_history)
+    if min_len < 20:
+        return None
+
+    price_matrix = np.column_stack([
+        np.array(h['prices'][-min_len:]) for h in holdings_with_history
+    ])
+
+    # Log returns
+    log_returns = np.diff(np.log(price_matrix), axis=0)
+
+    # Correlation matrix
+    corr_matrix = np.corrcoef(log_returns, rowvar=False)
+
+    # Handle single-asset edge case
+    if corr_matrix.ndim == 0:
+        return None
+
+    symbols = [h['symbol'] for h in holdings_with_history]
+    n = len(symbols)
+
+    # Average off-diagonal correlation
+    mask = ~np.eye(n, dtype=bool)
+    avg_corr = float(np.mean(corr_matrix[mask])) if n > 1 else 0.0
+
+    return {
+        "symbols": symbols,
+        "matrix": [[round(float(corr_matrix[i][j]), 3) for j in range(n)] for i in range(n)],
+        "avg_correlation": round(avg_corr, 3),
+    }
+
+
+# =========================================================================
 # BULK REFRESH - Background job to pre-cache ALL user tickers
 # =========================================================================
 
