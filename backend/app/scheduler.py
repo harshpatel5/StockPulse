@@ -166,6 +166,68 @@ def fetch_live_price(symbol):
 
 
 # =========================================================================
+# SECTOR DATA - Fetch company profile for diversification analysis
+# =========================================================================
+
+SECTOR_CACHE_TTL = 86400  # 24 hours — sectors rarely change
+
+def fetch_sector_data(symbol):
+    """Get company sector/industry from Finnhub. Cached in Redis for 24h."""
+    symbol = symbol.strip().upper()
+    cache_key = f"sector:{symbol}"
+
+    # Check Redis cache first
+    cached = redis_cache.get_price(cache_key)
+    if cached is not None:
+        # Stored as "sector|industry|name" string
+        parts = str(cached).split('|')
+        if len(parts) == 3:
+            return {"sector": parts[0], "industry": parts[1], "name": parts[2]}
+
+    if not FINNHUB_KEY or FINNHUB_KEY == FINNHUB_KEY_PLACEHOLDER:
+        return None
+
+    try:
+        url = f"https://finnhub.io/api/v1/stock/profile2?symbol={symbol}&token={FINNHUB_KEY}"
+        response = requests.get(url, timeout=5)
+        response.raise_for_status()
+
+        data = response.json()
+        if data and data.get('finnhubIndustry'):
+            sector = data.get('finnhubIndustry', 'Unknown')
+            industry = data.get('finnhubIndustry', 'Unknown')
+            name = data.get('name', symbol)
+
+            # Store as pipe-delimited string in Redis (reuses price cache infra)
+            cache_value = f"{sector}|{industry}|{name}"
+            redis_cache.set_price(cache_key, cache_value, ttl=SECTOR_CACHE_TTL)
+
+            return {"sector": sector, "industry": industry, "name": name}
+        return None
+    except Exception as e:
+        logger.warning(f"Failed to fetch sector data for {symbol}: {str(e)}")
+        return None
+
+
+def fetch_sectors_batch(symbols):
+    """Fetch sector data for multiple symbols in parallel."""
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    results = {}
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        future_map = {executor.submit(fetch_sector_data, s): s for s in symbols}
+        for future in as_completed(future_map):
+            symbol = future_map[future]
+            try:
+                result = future.result()
+                if result:
+                    results[symbol] = result
+            except Exception:
+                pass
+    return results
+
+
+# =========================================================================
 # BULK REFRESH - Background job to pre-cache ALL user tickers
 # =========================================================================
 

@@ -16,6 +16,7 @@ from app.scheduler import (
     generate_portfolio_chart_data,
     get_last_weekday_date,
     init_scheduler,
+    fetch_sectors_batch,
     FINNHUB_KEY,
     FINNHUB_KEY_PLACEHOLDER
 )
@@ -1172,6 +1173,146 @@ def create_app(config_class=Config):
         except Exception as e:
             logger.error(f"Monte Carlo simulation error: {e}")
             return jsonify({"message": f"Simulation error: {str(e)}"}), 500
+
+    # -------------------------------------------------------------------------
+    # PORTFOLIO DIVERSIFICATION SCORE
+    # -------------------------------------------------------------------------
+
+    @app.route('/api/portfolio/diversification', methods=['POST'])
+    @limiter.limit("30 per minute")
+    @token_required
+    def get_diversification_score(current_user):
+        """
+        Calculate portfolio diversification score (0-100) based on:
+        - HHI (Herfindahl-Hirschman Index) for concentration
+        - Sector distribution across holdings
+        - Asset class spread (stocks vs crypto vs ETFs)
+
+        Request body: { "prices": {"AAPL": 150.25, "BTC": 42000, ...} }
+        """
+        try:
+            data = request.get_json() or {}
+            live_prices = data.get('prices', {})
+
+            assets = Asset.query.filter_by(user_id=current_user.id).all()
+
+            if not assets:
+                return jsonify({
+                    "score": 0,
+                    "hhi": 0,
+                    "sector_count": 0,
+                    "asset_class_count": 0,
+                    "sectors": {},
+                    "asset_classes": {},
+                    "holdings_count": 0,
+                    "message": "No assets in portfolio"
+                }), 200
+
+            # --- Step 1: Calculate portfolio weights ---
+            holdings = []
+            total_value = 0
+
+            for asset in assets:
+                quantity = float(asset.quantity)
+                cost_basis = float(asset.cost_basis)
+                avg_price = cost_basis / quantity if quantity > 0 else 0
+                symbol = asset.name.strip().upper()
+                current_price = live_prices.get(symbol, avg_price)
+                current_value = current_price * quantity
+
+                holdings.append({
+                    "symbol": symbol,
+                    "type": (asset.asset_type or 'Stock').strip(),
+                    "value": current_value,
+                })
+                total_value += current_value
+
+            if total_value <= 0:
+                return jsonify({"score": 0, "message": "Portfolio value is zero"}), 200
+
+            # Calculate weights (fraction of total portfolio)
+            for h in holdings:
+                h["weight"] = h["value"] / total_value
+
+            # --- Step 2: HHI (Herfindahl-Hirschman Index) ---
+            # Sum of squared weights. Range: 1/n (perfect) to 1.0 (single asset)
+            hhi = sum(h["weight"] ** 2 for h in holdings)
+
+            # --- Step 3: Sector distribution ---
+            # Fetch sector data for stocks/ETFs only
+            stock_symbols = [h["symbol"] for h in holdings if h["type"].lower() in ('stock', 'etf')]
+            sector_data = fetch_sectors_batch(stock_symbols) if stock_symbols else {}
+
+            sector_weights = {}
+            for h in holdings:
+                if h["type"].lower() == 'crypto':
+                    sector = 'Cryptocurrency'
+                elif h["symbol"] in sector_data:
+                    sector = sector_data[h["symbol"]].get("sector", "Unknown")
+                else:
+                    sector = "Unknown"
+
+                h["sector"] = sector
+                sector_weights[sector] = sector_weights.get(sector, 0) + h["weight"]
+
+            sector_count = len([s for s, w in sector_weights.items() if w > 0.01])
+
+            # --- Step 4: Asset class spread ---
+            class_weights = {}
+            for h in holdings:
+                asset_class = h["type"]
+                class_weights[asset_class] = class_weights.get(asset_class, 0) + h["weight"]
+
+            asset_class_count = len(class_weights)
+
+            # --- Step 5: Combine into 0-100 score ---
+            n = len(holdings)
+
+            # HHI score (40% weight): compare actual HHI to perfect diversification (1/n)
+            perfect_hhi = 1.0 / n if n > 0 else 1.0
+            # Normalize: 0 = single asset, 100 = perfectly equal weights
+            if n <= 1:
+                hhi_score = 0
+            else:
+                # (1 - HHI) / (1 - 1/n) gives 0 to 1 range
+                hhi_score = max(0, min(100, ((1 - hhi) / (1 - perfect_hhi)) * 100))
+
+            # Sector score (35% weight): more sectors = better, max benefit at 6+
+            max_sectors = 6
+            sector_score = min(100, (sector_count / max_sectors) * 100)
+
+            # Asset class score (25% weight): having multiple asset classes
+            max_classes = 3  # Stock, Crypto, ETF
+            class_score = min(100, (asset_class_count / max_classes) * 100)
+
+            # Weighted final score
+            final_score = round(
+                hhi_score * 0.40 +
+                sector_score * 0.35 +
+                class_score * 0.25,
+                1
+            )
+
+            # Round sector weights for display
+            sector_display = {k: round(v * 100, 1) for k, v in sector_weights.items()}
+            class_display = {k: round(v * 100, 1) for k, v in class_weights.items()}
+
+            return jsonify({
+                "score": final_score,
+                "hhi": round(hhi, 4),
+                "hhi_score": round(hhi_score, 1),
+                "sector_score": round(sector_score, 1),
+                "class_score": round(class_score, 1),
+                "sector_count": sector_count,
+                "sectors": sector_display,
+                "asset_class_count": asset_class_count,
+                "asset_classes": class_display,
+                "holdings_count": n,
+            }), 200
+
+        except Exception as e:
+            logger.error(f"Diversification score error: {e}")
+            return jsonify({"message": f"Error calculating diversification: {str(e)}"}), 500
 
     # -------------------------------------------------------------------------
     # ERROR HANDLERS
