@@ -11,6 +11,7 @@ import { AllocationChart } from './components/AllocationChart';
 import { HistoryChart } from './components/HistoryChart';
 import { BenchmarkChart } from './components/BenchmarkChart';
 import { MonteCarloChart } from './components/MonteCarloChart';
+import { DiversificationScore } from './components/DiversificationScore';
 import { AssetForm } from './components/AssetForm';
 import { AssetList } from './components/AssetList';
 import { LoadingSpinner } from './components/LoadingSpinner';
@@ -150,6 +151,11 @@ const Dashboard = () => {
       {/* Monte Carlo Risk Simulation */}
       <section className="benchmark-section">
         <MonteCarloChart token={token} livePrices={livePrices} />
+      </section>
+
+      {/* Portfolio Diversification Analysis */}
+      <section className="benchmark-section">
+        <DiversificationScore token={token} livePrices={livePrices} />
       </section>
 
       <section className="content-grid">

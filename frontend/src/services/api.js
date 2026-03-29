@@ -212,6 +212,19 @@ export const fetchMonteCarloSimulation = async (token, livePrices = {}, timefram
 
 
 // ========================================
+// DIVERSIFICATION SCORE
+// ========================================
+
+export const fetchDiversificationScore = async (token, livePrices = {}) => {
+  return apiCall(`${API_BASE_URL}/portfolio/diversification`, {
+    method: 'POST',
+    headers: getAuthHeaders(token),
+    body: JSON.stringify({ prices: livePrices }),
+  });
+};
+
+
+// ========================================
 // USER ENDPOINT
 // ========================================
 
