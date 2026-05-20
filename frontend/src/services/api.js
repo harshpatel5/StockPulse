@@ -68,6 +68,13 @@ export const register = async (credentials) => {
   }, true); // Skip redirect on register
 };
 
+export const demoLogin = async () => {
+  return apiCall(`${API_BASE_URL}/demo-login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  }, true);
+};
+
 
 // ========================================
 // ASSET ENDPOINTS
@@ -207,6 +214,19 @@ export const fetchMonteCarloSimulation = async (token, livePrices = {}, timefram
     method: 'POST',
     headers: getAuthHeaders(token),
     body: JSON.stringify({ prices: livePrices, timeframe_days: timeframeDays }),
+  });
+};
+
+
+// ========================================
+// DIVERSIFICATION SCORE
+// ========================================
+
+export const fetchDiversificationScore = async (token, livePrices = {}) => {
+  return apiCall(`${API_BASE_URL}/portfolio/diversification`, {
+    method: 'POST',
+    headers: getAuthHeaders(token),
+    body: JSON.stringify({ prices: livePrices }),
   });
 };
 

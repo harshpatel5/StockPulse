@@ -1,6 +1,7 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useEffect, useState, useRef } from 'react';
+import { useAuth } from '../hooks/useAuth';
 import {
   TrendingUp,
   PieChart,
@@ -89,6 +90,20 @@ const TypeWriter = ({ words }) => {
 };
 
 const Landing = () => {
+  const { handleDemoLogin } = useAuth();
+  const navigate = useNavigate();
+  const [demoLoading, setDemoLoading] = useState(false);
+
+  const onDemoClick = async () => {
+    setDemoLoading(true);
+    try {
+      await handleDemoLogin();
+      navigate('/dashboard');
+    } catch {
+      setDemoLoading(false);
+    }
+  };
+
   const fadeInUp = {
     initial: { opacity: 0, y: 20 },
     animate: { opacity: 1, y: 0 },
@@ -170,6 +185,13 @@ const Landing = () => {
               <Link to="/login" className="btn-primary-landing">
                 Get started
               </Link>
+              <button
+                onClick={onDemoClick}
+                className="btn-secondary-landing"
+                disabled={demoLoading}
+              >
+                {demoLoading ? 'Loading...' : 'Try Demo'}
+              </button>
             </div>
           </motion.div>
 
@@ -326,9 +348,18 @@ const Landing = () => {
             Join investors choosing StockPulse
             as a trusted place to track, analyze, and grow.
           </p>
-          <Link to="/login" className="btn-cta">
-            Get started
-          </Link>
+          <div className="cta-buttons">
+            <Link to="/login" className="btn-cta">
+              Get started
+            </Link>
+            <button
+              onClick={onDemoClick}
+              className="btn-cta-secondary"
+              disabled={demoLoading}
+            >
+              {demoLoading ? 'Loading...' : 'Try Demo'}
+            </button>
+          </div>
         </motion.div>
       </section>
 

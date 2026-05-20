@@ -166,6 +166,432 @@ def fetch_live_price(symbol):
 
 
 # =========================================================================
+# SECTOR DATA - Fetch company profile for diversification analysis
+# =========================================================================
+
+SECTOR_CACHE_TTL = 86400  # 24 hours — sectors rarely change
+
+# Map Finnhub's granular industries to broad GICS sectors
+INDUSTRY_TO_SECTOR = {
+    # Communication Services
+    'Media': 'Communication Services',
+    'Entertainment': 'Communication Services',
+    'Internet Content & Information': 'Communication Services',
+    'Telecom Services': 'Communication Services',
+    'Advertising Agencies': 'Communication Services',
+    'Broadcasting': 'Communication Services',
+    'Electronic Gaming & Multimedia': 'Communication Services',
+    'Publishing': 'Communication Services',
+    # Technology
+    'Software': 'Technology',
+    'Software - Infrastructure': 'Technology',
+    'Software - Application': 'Technology',
+    'Semiconductors': 'Technology',
+    'Semiconductor Equipment & Materials': 'Technology',
+    'IT Consulting': 'Technology',
+    'Consumer Electronics': 'Technology',
+    'Hardware': 'Technology',
+    'Computer Hardware': 'Technology',
+    'Information Technology Services': 'Technology',
+    'Electronic Components': 'Technology',
+    'Scientific & Technical Instruments': 'Technology',
+    # Consumer Cyclical
+    'Auto Manufacturers': 'Consumer Cyclical',
+    'Retail': 'Consumer Cyclical',
+    'Internet Retail': 'Consumer Cyclical',
+    'Specialty Retail': 'Consumer Cyclical',
+    'Restaurants': 'Consumer Cyclical',
+    'Apparel': 'Consumer Cyclical',
+    'Apparel Manufacturing': 'Consumer Cyclical',
+    'Travel & Leisure': 'Consumer Cyclical',
+    'Lodging': 'Consumer Cyclical',
+    'Residential Construction': 'Consumer Cyclical',
+    'Furnishings': 'Consumer Cyclical',
+    'Auto Parts': 'Consumer Cyclical',
+    'Luxury Goods': 'Consumer Cyclical',
+    # Healthcare
+    'Drug Manufacturers': 'Healthcare',
+    'Drug Manufacturers - General': 'Healthcare',
+    'Drug Manufacturers - Specialty & Generic': 'Healthcare',
+    'Biotechnology': 'Healthcare',
+    'Medical Devices': 'Healthcare',
+    'Medical Instruments & Supplies': 'Healthcare',
+    'Health Care Plans': 'Healthcare',
+    'Health Information Services': 'Healthcare',
+    'Diagnostics & Research': 'Healthcare',
+    'Pharmaceutical Retailers': 'Healthcare',
+    # Financial Services
+    'Insurance': 'Financial Services',
+    'Insurance - Life': 'Financial Services',
+    'Insurance - Diversified': 'Financial Services',
+    'Insurance - Property & Casualty': 'Financial Services',
+    'Banks': 'Financial Services',
+    'Banks - Regional': 'Financial Services',
+    'Banks - Diversified': 'Financial Services',
+    'Capital Markets': 'Financial Services',
+    'Financial Data & Stock Exchanges': 'Financial Services',
+    'Asset Management': 'Financial Services',
+    'Credit Services': 'Financial Services',
+    'Financial Conglomerates': 'Financial Services',
+    # Energy
+    'Oil & Gas': 'Energy',
+    'Oil & Gas Integrated': 'Energy',
+    'Oil & Gas E&P': 'Energy',
+    'Oil & Gas Midstream': 'Energy',
+    'Oil & Gas Equipment & Services': 'Energy',
+    'Oil & Gas Refining & Marketing': 'Energy',
+    'Renewable Energy': 'Energy',
+    'Solar': 'Energy',
+    'Uranium': 'Energy',
+    # Industrials
+    'Aerospace & Defense': 'Industrials',
+    'Manufacturing': 'Industrials',
+    'Industrial Distribution': 'Industrials',
+    'Conglomerates': 'Industrials',
+    'Railroads': 'Industrials',
+    'Trucking': 'Industrials',
+    'Airlines': 'Industrials',
+    'Marine Shipping': 'Industrials',
+    'Waste Management': 'Industrials',
+    'Engineering & Construction': 'Industrials',
+    'Farm & Heavy Construction Machinery': 'Industrials',
+    'Specialty Industrial Machinery': 'Industrials',
+    'Electrical Equipment & Parts': 'Industrials',
+    'Staffing & Employment Services': 'Industrials',
+    'Consulting Services': 'Industrials',
+    'Security & Protection Services': 'Industrials',
+    'Integrated Freight & Logistics': 'Industrials',
+    # Real Estate
+    'REIT': 'Real Estate',
+    'REIT - Diversified': 'Real Estate',
+    'REIT - Residential': 'Real Estate',
+    'REIT - Industrial': 'Real Estate',
+    'REIT - Retail': 'Real Estate',
+    'REIT - Office': 'Real Estate',
+    'Real Estate Services': 'Real Estate',
+    'Real Estate - Diversified': 'Real Estate',
+    # Utilities
+    'Utilities': 'Utilities',
+    'Utilities - Regulated Electric': 'Utilities',
+    'Utilities - Diversified': 'Utilities',
+    'Utilities - Renewable': 'Utilities',
+    'Utilities - Independent Power Producers': 'Utilities',
+    # Basic Materials
+    'Packaging & Containers': 'Basic Materials',
+    'Chemicals': 'Basic Materials',
+    'Specialty Chemicals': 'Basic Materials',
+    'Steel': 'Basic Materials',
+    'Gold': 'Basic Materials',
+    'Copper': 'Basic Materials',
+    'Aluminum': 'Basic Materials',
+    'Building Materials': 'Basic Materials',
+    'Paper & Paper Products': 'Basic Materials',
+    # Consumer Defensive
+    'Household Products': 'Consumer Defensive',
+    'Household & Personal Products': 'Consumer Defensive',
+    'Grocery Stores': 'Consumer Defensive',
+    'Beverages': 'Consumer Defensive',
+    'Beverages - Non-Alcoholic': 'Consumer Defensive',
+    'Beverages - Wineries & Distilleries': 'Consumer Defensive',
+    'Tobacco': 'Consumer Defensive',
+    'Packaged Foods': 'Consumer Defensive',
+    'Confectioners': 'Consumer Defensive',
+    'Farm Products': 'Consumer Defensive',
+    'Discount Stores': 'Consumer Defensive',
+    'Education & Training Services': 'Consumer Defensive',
+}
+
+# Known ETF-to-sector mapping (avoids Finnhub lookup which returns nothing for ETFs)
+ETF_SECTOR_MAP = {
+    # Broad market / diversified
+    'VOO': 'Diversified', 'SPY': 'Diversified', 'VTI': 'Diversified',
+    'IVV': 'Diversified', 'DIA': 'Diversified', 'RSP': 'Diversified',
+    'SCHB': 'Diversified', 'ITOT': 'Diversified', 'SPTM': 'Diversified',
+    # Sector ETFs
+    'QQQ': 'Technology', 'XLK': 'Technology', 'VGT': 'Technology',
+    'XLF': 'Financial Services', 'VFH': 'Financial Services',
+    'XLV': 'Healthcare', 'VHT': 'Healthcare',
+    'XLE': 'Energy', 'VDE': 'Energy',
+    'XLY': 'Consumer Cyclical', 'VCR': 'Consumer Cyclical',
+    'XLP': 'Consumer Defensive', 'VDC': 'Consumer Defensive',
+    'XLI': 'Industrials', 'VIS': 'Industrials',
+    'XLU': 'Utilities', 'VPU': 'Utilities',
+    'XLRE': 'Real Estate', 'VNQ': 'Real Estate',
+    'XLC': 'Communication Services', 'VOX': 'Communication Services',
+    'XLB': 'Basic Materials', 'VAW': 'Basic Materials',
+    # International
+    'VXUS': 'Diversified', 'VEA': 'Diversified', 'VWO': 'Diversified',
+    'EFA': 'Diversified', 'EEM': 'Diversified',
+    # Bond ETFs
+    'BND': 'Bonds', 'AGG': 'Bonds', 'TLT': 'Bonds',
+    'VCIT': 'Bonds', 'VCSH': 'Bonds', 'LQD': 'Bonds',
+}
+
+
+def fetch_sector_data(symbol):
+    """Get company sector/industry from Finnhub. Cached in Redis for 24h."""
+    symbol = symbol.strip().upper()
+    cache_key = f"sector:{symbol}"
+
+    # Check Redis cache first
+    cached = redis_cache.get_price(cache_key)
+    if cached is not None:
+        # Stored as "sector|industry|name" string
+        parts = str(cached).split('|')
+        if len(parts) == 3:
+            return {"sector": parts[0], "industry": parts[1], "name": parts[2]}
+
+    if not FINNHUB_KEY or FINNHUB_KEY == FINNHUB_KEY_PLACEHOLDER:
+        return None
+
+    try:
+        url = f"https://finnhub.io/api/v1/stock/profile2?symbol={symbol}&token={FINNHUB_KEY}"
+        response = requests.get(url, timeout=5)
+        response.raise_for_status()
+
+        data = response.json()
+        if data and data.get('finnhubIndustry'):
+            industry = data.get('finnhubIndustry', 'Unknown')
+            sector = INDUSTRY_TO_SECTOR.get(industry, industry)
+            name = data.get('name', symbol)
+
+            # Store as pipe-delimited string in Redis (reuses price cache infra)
+            cache_value = f"{sector}|{industry}|{name}"
+            redis_cache.set_price(cache_key, cache_value, ttl=SECTOR_CACHE_TTL)
+
+            return {"sector": sector, "industry": industry, "name": name}
+        return None
+    except Exception as e:
+        logger.warning(f"Failed to fetch sector data for {symbol}: {str(e)}")
+        return None
+
+
+def fetch_sectors_batch(symbols):
+    """Fetch sector data for multiple symbols in parallel."""
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    results = {}
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        future_map = {executor.submit(fetch_sector_data, s): s for s in symbols}
+        for future in as_completed(future_map):
+            symbol = future_map[future]
+            try:
+                result = future.result()
+                if result:
+                    results[symbol] = result
+            except Exception:
+                pass
+    return results
+
+
+# =========================================================================
+# DIVERSIFICATION RECOMMENDATIONS
+# =========================================================================
+
+# Sector info: display name, well-known example companies, and description
+SECTOR_INFO = {
+    'Technology': {
+        'name': 'Technology',
+        'examples': ['AAPL', 'MSFT', 'NVDA'],
+        'description': 'Software, hardware, semiconductors, and IT services',
+    },
+    'Financial Services': {
+        'name': 'Financials',
+        'examples': ['JPM', 'V', 'BRK.B'],
+        'description': 'Banks, insurance, payments, and asset management',
+    },
+    'Healthcare': {
+        'name': 'Healthcare',
+        'examples': ['JNJ', 'UNH', 'PFE'],
+        'description': 'Pharma, biotech, medical devices, and health insurance',
+    },
+    'Energy': {
+        'name': 'Energy',
+        'examples': ['XOM', 'CVX', 'COP'],
+        'description': 'Oil, gas, and renewable energy companies',
+    },
+    'Consumer Cyclical': {
+        'name': 'Consumer Cyclical',
+        'examples': ['AMZN', 'HD', 'NKE'],
+        'description': 'Retail, auto, apparel, and discretionary spending',
+    },
+    'Consumer Defensive': {
+        'name': 'Consumer Defensive',
+        'examples': ['PG', 'KO', 'WMT'],
+        'description': 'Household goods, groceries, and everyday essentials',
+    },
+    'Industrials': {
+        'name': 'Industrials',
+        'examples': ['CAT', 'BA', 'UPS'],
+        'description': 'Aerospace, defense, manufacturing, and logistics',
+    },
+    'Utilities': {
+        'name': 'Utilities',
+        'examples': ['NEE', 'DUK', 'SO'],
+        'description': 'Electric, water, and gas utility providers',
+    },
+    'Real Estate': {
+        'name': 'Real Estate',
+        'examples': ['AMT', 'PLD', 'SPG'],
+        'description': 'REITs and real estate services',
+    },
+    'Communication Services': {
+        'name': 'Communication',
+        'examples': ['GOOG', 'META', 'DIS'],
+        'description': 'Media, telecom, social networks, and streaming',
+    },
+    'Basic Materials': {
+        'name': 'Materials',
+        'examples': ['LIN', 'APD', 'NEM'],
+        'description': 'Chemicals, metals, mining, and construction materials',
+    },
+}
+
+# All target sectors for a well-diversified portfolio
+ALL_SECTORS = set(SECTOR_INFO.keys())
+
+CONCENTRATION_THRESHOLD = 0.30  # 30% in one sector = over-concentrated
+MISSING_SECTOR_LIMIT = 4       # Suggest up to 4 missing sectors
+
+
+def generate_recommendations(holdings, sector_weights, class_weights, score):
+    """
+    Generate actionable portfolio recommendations based on diversification analysis.
+
+    Returns a list of recommendation dicts with type, message, and suggested action.
+    """
+    recommendations = []
+
+    # --- 1. Flag over-concentrated sectors ---
+    for sector, weight in sorted(sector_weights.items(), key=lambda x: x[1], reverse=True):
+        if weight >= CONCENTRATION_THRESHOLD and sector != 'Unknown':
+            pct = round(weight * 100, 1)
+            # Find holdings in this overweight sector for actionable advice
+            sector_holdings = [h['symbol'] for h in holdings if h.get('sector') == sector]
+            rec = {
+                "type": "concentration",
+                "severity": "high" if weight >= 0.50 else "medium",
+                "message": f"Portfolio is {pct}% in {sector} — consider reducing exposure",
+            }
+            if sector_holdings:
+                symbols = ', '.join(sector_holdings[:3])
+                rec["suggestion"] = {
+                    "sector": sector,
+                    "message": f"Consider trimming {symbols} to rebalance"
+                }
+            recommendations.append(rec)
+
+    # --- 2. Suggest missing sectors ---
+    present_sectors = {s for s, w in sector_weights.items() if w > 0.01}
+    missing = ALL_SECTORS - present_sectors
+    missing_list = sorted(missing)[:MISSING_SECTOR_LIMIT]
+
+    for sector in missing_list:
+        info = SECTOR_INFO.get(sector, {})
+        if info:
+            examples = ', '.join(info['examples'][:2])
+            recommendations.append({
+                "type": "missing_sector",
+                "severity": "low",
+                "message": f"No {info['name']} exposure — {info['description'].lower()}",
+                "suggestion": {
+                    "sector": sector,
+                    "message": f"Companies like {examples} could add {info['name'].lower()} coverage"
+                }
+            })
+
+    # --- 3. Asset class balance ---
+    has_stocks = class_weights.get('Stock', 0) > 0 or class_weights.get('ETF', 0) > 0
+    has_crypto = class_weights.get('Crypto', 0) > 0
+
+    if has_stocks and not has_crypto:
+        recommendations.append({
+            "type": "asset_class",
+            "severity": "low",
+            "message": "Portfolio is 100% equities — a small crypto allocation (1-5%) could improve diversification",
+        })
+    elif has_crypto and not has_stocks:
+        recommendations.append({
+            "type": "asset_class",
+            "severity": "high",
+            "message": "Portfolio is 100% crypto — consider adding equity ETFs like VTI or SPY for stability",
+        })
+
+    crypto_weight = class_weights.get('Crypto', 0)
+    if crypto_weight > 0.20:
+        recommendations.append({
+            "type": "asset_class",
+            "severity": "medium",
+            "message": f"Crypto is {round(crypto_weight * 100, 1)}% of portfolio — high volatility risk, consider rebalancing to under 20%",
+        })
+
+    # --- 4. Single-asset risk ---
+    if len([h for h in holdings if h.get('weight', 0) > 0.01]) == 1:
+        recommendations.append({
+            "type": "concentration",
+            "severity": "high",
+            "message": "Portfolio has only 1 asset — any single stock can lose 50%+ in a downturn",
+        })
+    elif len([h for h in holdings if h.get('weight', 0) > 0.01]) <= 3:
+        recommendations.append({
+            "type": "concentration",
+            "severity": "medium",
+            "message": "Portfolio has very few holdings — consider adding 5-10 positions for better risk distribution",
+        })
+
+    return recommendations
+
+
+def calculate_correlation_matrix(holdings_with_history):
+    """
+    Calculate correlation matrix from historical price data.
+
+    Args:
+        holdings_with_history: list of {"symbol": str, "prices": [float]}
+
+    Returns:
+        dict with "symbols", "matrix" (2D list), and "avg_correlation" (float)
+        or None if insufficient data.
+    """
+    import numpy as np
+
+    if len(holdings_with_history) < 2:
+        return None
+
+    # Trim all to same length
+    min_len = min(len(h['prices']) for h in holdings_with_history)
+    if min_len < 20:
+        return None
+
+    price_matrix = np.column_stack([
+        np.array(h['prices'][-min_len:]) for h in holdings_with_history
+    ])
+
+    # Log returns
+    log_returns = np.diff(np.log(price_matrix), axis=0)
+
+    # Correlation matrix
+    corr_matrix = np.corrcoef(log_returns, rowvar=False)
+
+    # Handle single-asset edge case
+    if corr_matrix.ndim == 0:
+        return None
+
+    symbols = [h['symbol'] for h in holdings_with_history]
+    n = len(symbols)
+
+    # Average off-diagonal correlation
+    mask = ~np.eye(n, dtype=bool)
+    avg_corr = float(np.mean(corr_matrix[mask])) if n > 1 else 0.0
+
+    return {
+        "symbols": symbols,
+        "matrix": [[round(float(corr_matrix[i][j]), 3) for j in range(n)] for i in range(n)],
+        "avg_correlation": round(avg_corr, 3),
+    }
+
+
+# =========================================================================
 # BULK REFRESH - Background job to pre-cache ALL user tickers
 # =========================================================================
 

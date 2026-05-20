@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
 import { useAssets } from './hooks/useAssets';
 import { usePortfolio } from './hooks/usePortfolio';
@@ -11,6 +11,7 @@ import { AllocationChart } from './components/AllocationChart';
 import { HistoryChart } from './components/HistoryChart';
 import { BenchmarkChart } from './components/BenchmarkChart';
 import { MonteCarloChart } from './components/MonteCarloChart';
+import { DiversificationScore } from './components/DiversificationScore';
 import { AssetForm } from './components/AssetForm';
 import { AssetList } from './components/AssetList';
 import { LoadingSpinner } from './components/LoadingSpinner';
@@ -22,7 +23,7 @@ const Dashboard = () => {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState(null);
 
-  const { token, isAuthenticated, isValidating, triggerValidation } = useAuth();
+  const { token, isAuthenticated, isValidating, isDemo, triggerValidation, handleLogout } = useAuth();
 
   // Check authentication when component loads
   useEffect(() => {
@@ -112,6 +113,12 @@ const Dashboard = () => {
   return (
     <div className="dashboard-dark">
       <Navbar />
+      {isDemo && (
+        <div className="demo-banner">
+          Viewing demo account (read-only).{' '}
+          <Link to="/login" onClick={handleLogout}>Sign up for free</Link>
+        </div>
+      )}
       <div className="app-shell">
         <Header
           onRefresh={handleRefresh}
@@ -152,15 +159,22 @@ const Dashboard = () => {
         <MonteCarloChart token={token} livePrices={livePrices} />
       </section>
 
+      {/* Portfolio Diversification Analysis */}
+      <section className="benchmark-section">
+        <DiversificationScore token={token} livePrices={livePrices} />
+      </section>
+
       <section className="content-grid">
-        <AssetForm
-          formAsset={formAsset}
-          setFormAsset={setFormAsset}
-          onSubmit={handleAddAsset}
-          busy={busy}
-          token={token}
-        />
-        <AssetList assets={portfolioTotals.rows} onDelete={handleDeleteAsset} />
+        {!isDemo && (
+          <AssetForm
+            formAsset={formAsset}
+            setFormAsset={setFormAsset}
+            onSubmit={handleAddAsset}
+            busy={busy}
+            token={token}
+          />
+        )}
+        <AssetList assets={portfolioTotals.rows} onDelete={isDemo ? null : handleDeleteAsset} />
       </section>
       </div>
     </div>
@@ -173,7 +187,7 @@ const LoginPage = () => {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState(null);
   const submittingRef = useRef(false);
-  const { isAuthenticated, isValidating, authMode, setAuthMode, credentials, setCredentials, handleLogin, handleRegister, triggerValidation } = useAuth();
+  const { isAuthenticated, isValidating, authMode, setAuthMode, credentials, setCredentials, handleLogin, handleRegister, handleDemoLogin, triggerValidation } = useAuth();
 
   // Check if user is already logged in when entering login page
   useEffect(() => {
@@ -186,6 +200,17 @@ const LoginPage = () => {
       navigate('/dashboard', { replace: true });
     }
   }, [isAuthenticated, isValidating, navigate]);
+
+  const onDemoLogin = async () => {
+    setBusy(true);
+    setMessage(null);
+    try {
+      await handleDemoLogin();
+    } catch (error) {
+      setMessage({ type: 'error', text: error.message || 'Demo login failed.' });
+      setBusy(false);
+    }
+  };
 
   const handleAuthSubmit = async (event) => {
     event.preventDefault();
@@ -237,6 +262,7 @@ const LoginPage = () => {
         handleSubmit={handleAuthSubmit}
         busy={busy}
         message={message}
+        onDemoLogin={onDemoLogin}
       />
     </>
   );

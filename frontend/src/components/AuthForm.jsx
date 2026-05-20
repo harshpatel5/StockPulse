@@ -9,6 +9,7 @@ export const AuthForm = ({
   handleSubmit,
   busy,
   message,
+  onDemoLogin,
 }) => {
   return (
     <div className="app-shell auth-shell">
@@ -71,6 +72,15 @@ export const AuthForm = ({
         >
           {authMode === 'login' ? 'Need an account? Register' : 'Already a member? Sign in'}
         </button>
+
+        {onDemoLogin && (
+          <>
+            <div className="auth-divider"><span>or</span></div>
+            <button className="btn ghost demo-btn" type="button" onClick={onDemoLogin}>
+              Try Demo Account
+            </button>
+          </>
+        )}
       </div>
     </div>
   );

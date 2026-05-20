@@ -1224,3 +1224,58 @@ body {
 .dashboard-dark .field input::placeholder {
   color: #6b6b6b;
 }
+
+/* ========== Demo Banner ========== */
+
+.demo-banner {
+  background: #1e1e1e;
+  border-bottom: 1px solid #a43d12;
+  color: #c9c6c4;
+  text-align: center;
+  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+  position: sticky;
+  top: 60px;
+  z-index: 90;
+}
+
+.demo-banner a {
+  color: #a43d12;
+  margin-left: 0.5rem;
+  text-decoration: underline;
+  font-weight: 500;
+}
+
+.demo-banner a:hover {
+  color: #c9c6c4;
+}
+
+/* ========== Auth Divider & Demo Button ========== */
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin: 0.75rem 0;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border-color);
+}
+
+.demo-btn {
+  width: 100%;
+  justify-content: center;
+  border: 1.5px solid var(--border-color) !important;
+}
+
+.demo-btn:hover {
+  border-color: var(--border-active) !important;
+  background: var(--bg-tertiary);
+}

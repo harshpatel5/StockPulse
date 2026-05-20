@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
-import { login, register, getMe } from '../services/api';
+import { login, register, demoLogin, getMe } from '../services/api';
 import { dedupeRequest } from '../utils/requestDeduplication';
 
 const AuthContext = createContext(null);
@@ -134,7 +134,18 @@ export const AuthProvider = ({ children }) => {
     return { success: true, message: 'Account created. Please sign in.' };
   };
 
+  const handleDemoLogin = async () => {
+    const data = await demoLogin();
+    setToken(data.token);
+    setUser(data.user);
+    localStorage.setItem('token', data.token);
+    localStorage.setItem('user', JSON.stringify(data.user));
+    setIsValidating(false);
+    return data;
+  };
+
   const isAuthenticated = Boolean(token && user);
+  const isDemo = Boolean(user?.is_demo);
 
   const value = {
     token,
@@ -146,7 +157,9 @@ export const AuthProvider = ({ children }) => {
     setCredentials,
     handleLogin,
     handleRegister,
+    handleDemoLogin,
     handleLogout,
+    isDemo,
     isValidating,
     triggerValidation,
   };

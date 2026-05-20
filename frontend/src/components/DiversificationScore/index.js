@@ -1,0 +1,1 @@
+export { DiversificationScore } from './DiversificationScore';
