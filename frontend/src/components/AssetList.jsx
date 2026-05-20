@@ -18,14 +18,16 @@ export const AssetList = ({ assets, onDelete }) => {
                   <strong>{asset.name}</strong>
                   <p className="muted">{asset.type}</p>
                 </div>
-                <button
-                  type="button"
-                  className="btn icon-delete"
-                  onClick={() => onDelete(asset.id)}
-                  title="Delete asset"
-                >
-                  <Trash2 size={18} />
-                </button>
+                {onDelete && (
+                  <button
+                    type="button"
+                    className="btn icon-delete"
+                    onClick={() => onDelete(asset.id)}
+                    title="Delete asset"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                )}
               </div>
 
               <div className="asset-metrics">
@@ -39,7 +41,7 @@ export const AssetList = ({ assets, onDelete }) => {
                 </div>
                 <div>
                   <span>Current</span>
-                  <strong>{currency(asset.currentPrice)}</strong>
+                  <strong>{currency(asset.currentValue)}</strong>
                 </div>
                 <div>
                   <span>Change</span>

@@ -171,6 +171,163 @@ def fetch_live_price(symbol):
 
 SECTOR_CACHE_TTL = 86400  # 24 hours — sectors rarely change
 
+# Map Finnhub's granular industries to broad GICS sectors
+INDUSTRY_TO_SECTOR = {
+    # Communication Services
+    'Media': 'Communication Services',
+    'Entertainment': 'Communication Services',
+    'Internet Content & Information': 'Communication Services',
+    'Telecom Services': 'Communication Services',
+    'Advertising Agencies': 'Communication Services',
+    'Broadcasting': 'Communication Services',
+    'Electronic Gaming & Multimedia': 'Communication Services',
+    'Publishing': 'Communication Services',
+    # Technology
+    'Software': 'Technology',
+    'Software - Infrastructure': 'Technology',
+    'Software - Application': 'Technology',
+    'Semiconductors': 'Technology',
+    'Semiconductor Equipment & Materials': 'Technology',
+    'IT Consulting': 'Technology',
+    'Consumer Electronics': 'Technology',
+    'Hardware': 'Technology',
+    'Computer Hardware': 'Technology',
+    'Information Technology Services': 'Technology',
+    'Electronic Components': 'Technology',
+    'Scientific & Technical Instruments': 'Technology',
+    # Consumer Cyclical
+    'Auto Manufacturers': 'Consumer Cyclical',
+    'Retail': 'Consumer Cyclical',
+    'Internet Retail': 'Consumer Cyclical',
+    'Specialty Retail': 'Consumer Cyclical',
+    'Restaurants': 'Consumer Cyclical',
+    'Apparel': 'Consumer Cyclical',
+    'Apparel Manufacturing': 'Consumer Cyclical',
+    'Travel & Leisure': 'Consumer Cyclical',
+    'Lodging': 'Consumer Cyclical',
+    'Residential Construction': 'Consumer Cyclical',
+    'Furnishings': 'Consumer Cyclical',
+    'Auto Parts': 'Consumer Cyclical',
+    'Luxury Goods': 'Consumer Cyclical',
+    # Healthcare
+    'Drug Manufacturers': 'Healthcare',
+    'Drug Manufacturers - General': 'Healthcare',
+    'Drug Manufacturers - Specialty & Generic': 'Healthcare',
+    'Biotechnology': 'Healthcare',
+    'Medical Devices': 'Healthcare',
+    'Medical Instruments & Supplies': 'Healthcare',
+    'Health Care Plans': 'Healthcare',
+    'Health Information Services': 'Healthcare',
+    'Diagnostics & Research': 'Healthcare',
+    'Pharmaceutical Retailers': 'Healthcare',
+    # Financial Services
+    'Insurance': 'Financial Services',
+    'Insurance - Life': 'Financial Services',
+    'Insurance - Diversified': 'Financial Services',
+    'Insurance - Property & Casualty': 'Financial Services',
+    'Banks': 'Financial Services',
+    'Banks - Regional': 'Financial Services',
+    'Banks - Diversified': 'Financial Services',
+    'Capital Markets': 'Financial Services',
+    'Financial Data & Stock Exchanges': 'Financial Services',
+    'Asset Management': 'Financial Services',
+    'Credit Services': 'Financial Services',
+    'Financial Conglomerates': 'Financial Services',
+    # Energy
+    'Oil & Gas': 'Energy',
+    'Oil & Gas Integrated': 'Energy',
+    'Oil & Gas E&P': 'Energy',
+    'Oil & Gas Midstream': 'Energy',
+    'Oil & Gas Equipment & Services': 'Energy',
+    'Oil & Gas Refining & Marketing': 'Energy',
+    'Renewable Energy': 'Energy',
+    'Solar': 'Energy',
+    'Uranium': 'Energy',
+    # Industrials
+    'Aerospace & Defense': 'Industrials',
+    'Manufacturing': 'Industrials',
+    'Industrial Distribution': 'Industrials',
+    'Conglomerates': 'Industrials',
+    'Railroads': 'Industrials',
+    'Trucking': 'Industrials',
+    'Airlines': 'Industrials',
+    'Marine Shipping': 'Industrials',
+    'Waste Management': 'Industrials',
+    'Engineering & Construction': 'Industrials',
+    'Farm & Heavy Construction Machinery': 'Industrials',
+    'Specialty Industrial Machinery': 'Industrials',
+    'Electrical Equipment & Parts': 'Industrials',
+    'Staffing & Employment Services': 'Industrials',
+    'Consulting Services': 'Industrials',
+    'Security & Protection Services': 'Industrials',
+    'Integrated Freight & Logistics': 'Industrials',
+    # Real Estate
+    'REIT': 'Real Estate',
+    'REIT - Diversified': 'Real Estate',
+    'REIT - Residential': 'Real Estate',
+    'REIT - Industrial': 'Real Estate',
+    'REIT - Retail': 'Real Estate',
+    'REIT - Office': 'Real Estate',
+    'Real Estate Services': 'Real Estate',
+    'Real Estate - Diversified': 'Real Estate',
+    # Utilities
+    'Utilities': 'Utilities',
+    'Utilities - Regulated Electric': 'Utilities',
+    'Utilities - Diversified': 'Utilities',
+    'Utilities - Renewable': 'Utilities',
+    'Utilities - Independent Power Producers': 'Utilities',
+    # Basic Materials
+    'Packaging & Containers': 'Basic Materials',
+    'Chemicals': 'Basic Materials',
+    'Specialty Chemicals': 'Basic Materials',
+    'Steel': 'Basic Materials',
+    'Gold': 'Basic Materials',
+    'Copper': 'Basic Materials',
+    'Aluminum': 'Basic Materials',
+    'Building Materials': 'Basic Materials',
+    'Paper & Paper Products': 'Basic Materials',
+    # Consumer Defensive
+    'Household Products': 'Consumer Defensive',
+    'Household & Personal Products': 'Consumer Defensive',
+    'Grocery Stores': 'Consumer Defensive',
+    'Beverages': 'Consumer Defensive',
+    'Beverages - Non-Alcoholic': 'Consumer Defensive',
+    'Beverages - Wineries & Distilleries': 'Consumer Defensive',
+    'Tobacco': 'Consumer Defensive',
+    'Packaged Foods': 'Consumer Defensive',
+    'Confectioners': 'Consumer Defensive',
+    'Farm Products': 'Consumer Defensive',
+    'Discount Stores': 'Consumer Defensive',
+    'Education & Training Services': 'Consumer Defensive',
+}
+
+# Known ETF-to-sector mapping (avoids Finnhub lookup which returns nothing for ETFs)
+ETF_SECTOR_MAP = {
+    # Broad market / diversified
+    'VOO': 'Diversified', 'SPY': 'Diversified', 'VTI': 'Diversified',
+    'IVV': 'Diversified', 'DIA': 'Diversified', 'RSP': 'Diversified',
+    'SCHB': 'Diversified', 'ITOT': 'Diversified', 'SPTM': 'Diversified',
+    # Sector ETFs
+    'QQQ': 'Technology', 'XLK': 'Technology', 'VGT': 'Technology',
+    'XLF': 'Financial Services', 'VFH': 'Financial Services',
+    'XLV': 'Healthcare', 'VHT': 'Healthcare',
+    'XLE': 'Energy', 'VDE': 'Energy',
+    'XLY': 'Consumer Cyclical', 'VCR': 'Consumer Cyclical',
+    'XLP': 'Consumer Defensive', 'VDC': 'Consumer Defensive',
+    'XLI': 'Industrials', 'VIS': 'Industrials',
+    'XLU': 'Utilities', 'VPU': 'Utilities',
+    'XLRE': 'Real Estate', 'VNQ': 'Real Estate',
+    'XLC': 'Communication Services', 'VOX': 'Communication Services',
+    'XLB': 'Basic Materials', 'VAW': 'Basic Materials',
+    # International
+    'VXUS': 'Diversified', 'VEA': 'Diversified', 'VWO': 'Diversified',
+    'EFA': 'Diversified', 'EEM': 'Diversified',
+    # Bond ETFs
+    'BND': 'Bonds', 'AGG': 'Bonds', 'TLT': 'Bonds',
+    'VCIT': 'Bonds', 'VCSH': 'Bonds', 'LQD': 'Bonds',
+}
+
+
 def fetch_sector_data(symbol):
     """Get company sector/industry from Finnhub. Cached in Redis for 24h."""
     symbol = symbol.strip().upper()
@@ -194,8 +351,8 @@ def fetch_sector_data(symbol):
 
         data = response.json()
         if data and data.get('finnhubIndustry'):
-            sector = data.get('finnhubIndustry', 'Unknown')
             industry = data.get('finnhubIndustry', 'Unknown')
+            sector = INDUSTRY_TO_SECTOR.get(industry, industry)
             name = data.get('name', symbol)
 
             # Store as pipe-delimited string in Redis (reuses price cache infra)
@@ -231,23 +388,67 @@ def fetch_sectors_batch(symbols):
 # DIVERSIFICATION RECOMMENDATIONS
 # =========================================================================
 
-# Map sectors to suggested ETFs for diversification
-SECTOR_ETF_MAP = {
-    'Technology': {'etfs': ['XLK', 'VGT'], 'name': 'Technology'},
-    'Financial Services': {'etfs': ['XLF', 'VFH'], 'name': 'Financials'},
-    'Healthcare': {'etfs': ['XLV', 'VHT'], 'name': 'Healthcare'},
-    'Energy': {'etfs': ['XLE', 'VDE'], 'name': 'Energy'},
-    'Consumer Cyclical': {'etfs': ['XLY', 'VCR'], 'name': 'Consumer Cyclical'},
-    'Consumer Defensive': {'etfs': ['XLP', 'VDC'], 'name': 'Consumer Defensive'},
-    'Industrials': {'etfs': ['XLI', 'VIS'], 'name': 'Industrials'},
-    'Utilities': {'etfs': ['XLU', 'VPU'], 'name': 'Utilities'},
-    'Real Estate': {'etfs': ['XLRE', 'VNQ'], 'name': 'Real Estate'},
-    'Communication Services': {'etfs': ['XLC', 'VOX'], 'name': 'Communication'},
-    'Basic Materials': {'etfs': ['XLB', 'VAW'], 'name': 'Materials'},
+# Sector info: display name, well-known example companies, and description
+SECTOR_INFO = {
+    'Technology': {
+        'name': 'Technology',
+        'examples': ['AAPL', 'MSFT', 'NVDA'],
+        'description': 'Software, hardware, semiconductors, and IT services',
+    },
+    'Financial Services': {
+        'name': 'Financials',
+        'examples': ['JPM', 'V', 'BRK.B'],
+        'description': 'Banks, insurance, payments, and asset management',
+    },
+    'Healthcare': {
+        'name': 'Healthcare',
+        'examples': ['JNJ', 'UNH', 'PFE'],
+        'description': 'Pharma, biotech, medical devices, and health insurance',
+    },
+    'Energy': {
+        'name': 'Energy',
+        'examples': ['XOM', 'CVX', 'COP'],
+        'description': 'Oil, gas, and renewable energy companies',
+    },
+    'Consumer Cyclical': {
+        'name': 'Consumer Cyclical',
+        'examples': ['AMZN', 'HD', 'NKE'],
+        'description': 'Retail, auto, apparel, and discretionary spending',
+    },
+    'Consumer Defensive': {
+        'name': 'Consumer Defensive',
+        'examples': ['PG', 'KO', 'WMT'],
+        'description': 'Household goods, groceries, and everyday essentials',
+    },
+    'Industrials': {
+        'name': 'Industrials',
+        'examples': ['CAT', 'BA', 'UPS'],
+        'description': 'Aerospace, defense, manufacturing, and logistics',
+    },
+    'Utilities': {
+        'name': 'Utilities',
+        'examples': ['NEE', 'DUK', 'SO'],
+        'description': 'Electric, water, and gas utility providers',
+    },
+    'Real Estate': {
+        'name': 'Real Estate',
+        'examples': ['AMT', 'PLD', 'SPG'],
+        'description': 'REITs and real estate services',
+    },
+    'Communication Services': {
+        'name': 'Communication',
+        'examples': ['GOOG', 'META', 'DIS'],
+        'description': 'Media, telecom, social networks, and streaming',
+    },
+    'Basic Materials': {
+        'name': 'Materials',
+        'examples': ['LIN', 'APD', 'NEM'],
+        'description': 'Chemicals, metals, mining, and construction materials',
+    },
 }
 
 # All target sectors for a well-diversified portfolio
-ALL_SECTORS = set(SECTOR_ETF_MAP.keys())
+ALL_SECTORS = set(SECTOR_INFO.keys())
 
 CONCENTRATION_THRESHOLD = 0.30  # 30% in one sector = over-concentrated
 MISSING_SECTOR_LIMIT = 4       # Suggest up to 4 missing sectors
@@ -265,25 +466,19 @@ def generate_recommendations(holdings, sector_weights, class_weights, score):
     for sector, weight in sorted(sector_weights.items(), key=lambda x: x[1], reverse=True):
         if weight >= CONCENTRATION_THRESHOLD and sector != 'Unknown':
             pct = round(weight * 100, 1)
+            # Find holdings in this overweight sector for actionable advice
+            sector_holdings = [h['symbol'] for h in holdings if h.get('sector') == sector]
             rec = {
                 "type": "concentration",
                 "severity": "high" if weight >= 0.50 else "medium",
                 "message": f"Portfolio is {pct}% in {sector} — consider reducing exposure",
             }
-            # Suggest what to diversify into (pick a missing or low-weight sector)
-            underweight = [
-                s for s in ALL_SECTORS
-                if s != sector and sector_weights.get(s, 0) < 0.05
-            ]
-            if underweight:
-                suggestion = underweight[0]
-                etf_info = SECTOR_ETF_MAP.get(suggestion, {})
-                if etf_info:
-                    rec["suggestion"] = {
-                        "sector": suggestion,
-                        "etfs": etf_info['etfs'],
-                        "message": f"Consider adding {etf_info['etfs'][0]} for {etf_info['name']} exposure"
-                    }
+            if sector_holdings:
+                symbols = ', '.join(sector_holdings[:3])
+                rec["suggestion"] = {
+                    "sector": sector,
+                    "message": f"Consider trimming {symbols} to rebalance"
+                }
             recommendations.append(rec)
 
     # --- 2. Suggest missing sectors ---
@@ -292,16 +487,16 @@ def generate_recommendations(holdings, sector_weights, class_weights, score):
     missing_list = sorted(missing)[:MISSING_SECTOR_LIMIT]
 
     for sector in missing_list:
-        etf_info = SECTOR_ETF_MAP.get(sector, {})
-        if etf_info:
+        info = SECTOR_INFO.get(sector, {})
+        if info:
+            examples = ', '.join(info['examples'][:2])
             recommendations.append({
                 "type": "missing_sector",
                 "severity": "low",
-                "message": f"No {etf_info['name']} exposure — {etf_info['etfs'][0]} is a low-cost option",
+                "message": f"No {info['name']} exposure — {info['description'].lower()}",
                 "suggestion": {
                     "sector": sector,
-                    "etfs": etf_info['etfs'],
-                    "message": f"Add {etf_info['etfs'][0]} for {etf_info['name']} sector coverage"
+                    "message": f"Companies like {examples} could add {info['name'].lower()} coverage"
                 }
             })
 

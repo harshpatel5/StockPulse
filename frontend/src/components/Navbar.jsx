@@ -3,7 +3,7 @@ import { TrendingUp, LogOut, Menu } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
 export const Navbar = () => {
-  const { user, isAuthenticated, handleLogout } = useAuth();
+  const { user, isAuthenticated, isDemo, handleLogout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const isLanding = location.pathname === '/';
@@ -38,7 +38,7 @@ export const Navbar = () => {
                 Dashboard
               </Link>
             )}
-            {user && <span className="user-email">{user.email}</span>}
+            {user && <span className="user-email">{isDemo ? 'Demo Account' : user.email}</span>}
             <button onClick={onLogout} className="btn ghost">
               <LogOut size={16} />
               Logout

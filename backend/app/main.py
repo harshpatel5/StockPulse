@@ -18,6 +18,7 @@ from app.scheduler import (
     init_scheduler,
     fetch_sectors_batch,
     generate_recommendations,
+    ETF_SECTOR_MAP,
     FINNHUB_KEY,
     FINNHUB_KEY_PLACEHOLDER
 )
@@ -25,11 +26,72 @@ from app import redis_cache
 import requests
 import os
 import logging
+import random
 import numpy as np
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # Setup logging
 logger = logging.getLogger(__name__)
+
+
+DEMO_EMAIL = 'demo@stockpulse.com'
+
+DEMO_ASSETS = [
+    {'name': 'AAPL',  'asset_type': 'Stock',  'quantity': 15,   'cost_basis': 2475},
+    {'name': 'MSFT',  'asset_type': 'Stock',  'quantity': 10,   'cost_basis': 3800},
+    {'name': 'GOOGL', 'asset_type': 'Stock',  'quantity': 8,    'cost_basis': 1280},
+    {'name': 'NVDA',  'asset_type': 'Stock',  'quantity': 12,   'cost_basis': 10200},
+    {'name': 'AMZN',  'asset_type': 'Stock',  'quantity': 6,    'cost_basis': 1080},
+    {'name': 'JNJ',   'asset_type': 'Stock',  'quantity': 12,   'cost_basis': 1800},
+    {'name': 'VOO',   'asset_type': 'ETF',    'quantity': 20,   'cost_basis': 9400},
+    {'name': 'QQQ',   'asset_type': 'ETF',    'quantity': 10,   'cost_basis': 4800},
+    {'name': 'BTC',   'asset_type': 'Crypto', 'quantity': 0.15, 'cost_basis': 9000},
+    {'name': 'ETH',   'asset_type': 'Crypto', 'quantity': 2.0,  'cost_basis': 6000},
+]
+
+
+def _seed_demo_user():
+    """Seed a demo user with sample portfolio data. Idempotent — skips if exists."""
+    if User.query.filter_by(email=DEMO_EMAIL).first():
+        return
+
+    demo_user = User(email=DEMO_EMAIL, is_demo=True)
+    demo_user.hash_password(os.urandom(24).hex())
+    db.session.add(demo_user)
+    db.session.flush()
+
+    total_invested = 0
+    for a in DEMO_ASSETS:
+        db.session.add(Asset(user_id=demo_user.id, **a))
+        total_invested += a['cost_basis']
+
+    # Seed 30 days of portfolio history with realistic volatility
+    random.seed(42)
+    base_value = total_invested * 1.05
+    now = datetime.now(timezone.utc)
+    for day_offset in range(30, 0, -1):
+        day_date = now - timedelta(days=day_offset)
+        drift = (30 - day_offset) * 0.002
+        noise = random.gauss(0, 0.012)
+        value = base_value * (1 + drift + noise)
+        db.session.add(PortfolioHistory(
+            user_id=demo_user.id,
+            date=day_date.replace(hour=0, minute=0, second=0, microsecond=0),
+            total_value=round(value, 2),
+        ))
+
+    # Seed a few cash flow records
+    db.session.add(CashFlow(
+        user_id=demo_user.id,
+        date=now - timedelta(days=60),
+        amount=total_invested,
+        flow_type='add',
+        asset_name=None,
+        notes='Initial portfolio investment',
+    ))
+
+    db.session.commit()
+    print("✓ Demo account seeded successfully!")
 
 
 def create_app(config_class=Config):
@@ -55,7 +117,10 @@ def create_app(config_class=Config):
     with app.app_context():
         db.create_all()
         print("✓ Database tables created successfully!")
-        
+
+        # Seed demo account with sample portfolio data
+        _seed_demo_user()
+
         # Configure logging
         logging.basicConfig(level=logging.INFO)
         print("✓ On-demand chart generation enabled!")
@@ -173,6 +238,24 @@ def create_app(config_class=Config):
         except Exception as e:
             return jsonify({"message": f"Login error: {str(e)}"}), 500
     
+    @app.route('/api/demo-login', methods=['POST'])
+    @limiter.limit("30 per hour")
+    def demo_login():
+        """Login as demo user — no credentials needed"""
+        try:
+            demo_user = User.query.filter_by(email=DEMO_EMAIL).first()
+            if not demo_user:
+                return jsonify({"message": "Demo account not available"}), 503
+
+            token = generate_token(demo_user.id)
+            return jsonify({
+                "message": "Demo login successful",
+                "token": token,
+                "user": demo_user.to_dict()
+            }), 200
+        except Exception as e:
+            return jsonify({"message": f"Demo login error: {str(e)}"}), 500
+
     # -------------------------------------------------------------------------
     # ASSET ROUTES (Protected - Require Authentication)
     # -------------------------------------------------------------------------
@@ -193,9 +276,11 @@ def create_app(config_class=Config):
                 return jsonify({"message": f"Error fetching assets: {str(e)}"}), 500
         
         elif request.method == 'POST':
+            if current_user.is_demo:
+                return jsonify({"message": "Demo account is read-only"}), 403
             try:
                 data = request.get_json()
-                
+
                 # Validate required fields
                 name = data.get('name')
                 asset_type = data.get('type')
@@ -263,6 +348,8 @@ def create_app(config_class=Config):
             return jsonify(asset.to_dict()), 200
         
         elif request.method == 'PUT':
+            if current_user.is_demo:
+                return jsonify({"message": "Demo account is read-only"}), 403
             try:
                 data = request.get_json()
                 old_cost_basis = float(asset.cost_basis)
@@ -305,6 +392,8 @@ def create_app(config_class=Config):
                 return jsonify({"message": f"Database error: {str(e)}"}), 500
         
         elif request.method == 'DELETE':
+            if current_user.is_demo:
+                return jsonify({"message": "Demo account is read-only"}), 403
             try:
                 # Accept optional current_value for accurate outflow tracking
                 data = request.get_json() or {}
@@ -339,6 +428,8 @@ def create_app(config_class=Config):
         If not provided, falls back to cost_basis calculation.
         Weekend requests are mapped to Friday's date.
         """
+        if current_user.is_demo:
+            return jsonify({"message": "Demo account is read-only"}), 403
         try:
             # Get current UTC time and map weekends to Friday
             now_utc = datetime.now(timezone.utc)
@@ -1248,6 +1339,8 @@ def create_app(config_class=Config):
             for h in holdings:
                 if h["type"].lower() == 'crypto':
                     sector = 'Cryptocurrency'
+                elif h["type"].lower() == 'etf' and h["symbol"] in ETF_SECTOR_MAP:
+                    sector = ETF_SECTOR_MAP[h["symbol"]]
                 elif h["symbol"] in sector_data:
                     sector = sector_data[h["symbol"]].get("sector", "Unknown")
                 else:
@@ -1256,7 +1349,8 @@ def create_app(config_class=Config):
                 h["sector"] = sector
                 sector_weights[sector] = sector_weights.get(sector, 0) + h["weight"]
 
-            sector_count = len([s for s, w in sector_weights.items() if w > 0.01])
+            sector_count = len([s for s, w in sector_weights.items() if w > 0.01 and s != 'Cryptocurrency'])
+            crypto_count = len([h for h in holdings if h["type"].lower() == 'crypto'])
 
             # --- Step 4: Asset class spread ---
             class_weights = {}
@@ -1278,21 +1372,43 @@ def create_app(config_class=Config):
                 # (1 - HHI) / (1 - 1/n) gives 0 to 1 range
                 hhi_score = max(0, min(100, ((1 - hhi) / (1 - perfect_hhi)) * 100))
 
-            # Sector score (35% weight): more sectors = better, max benefit at 6+
+            # Sector score (35% weight): count + concentration penalty
             max_sectors = 6
-            sector_score = min(100, (sector_count / max_sectors) * 100)
+            sector_count_score = min(100, (sector_count / max_sectors) * 100)
+
+            # Penalize if any single sector dominates
+            max_sector_weight = max(sector_weights.values()) if sector_weights else 0
+            if max_sector_weight > 0.50:
+                concentration_penalty = 0.3
+            elif max_sector_weight > 0.30:
+                concentration_penalty = 0.6
+            else:
+                concentration_penalty = 1.0
+
+            sector_score = sector_count_score * concentration_penalty
 
             # Asset class score (25% weight): having multiple asset classes
             max_classes = 3  # Stock, Crypto, ETF
             class_score = min(100, (asset_class_count / max_classes) * 100)
 
             # Weighted final score
-            final_score = round(
+            final_score = (
                 hhi_score * 0.40 +
                 sector_score * 0.35 +
-                class_score * 0.25,
-                1
+                class_score * 0.25
             )
+
+            # Penalize low holding count (fewer than 5)
+            if n < 5:
+                final_score = final_score * (n / 5)
+
+            # Hard cap: concentrated portfolios cannot score high
+            if max_sector_weight > 0.50:
+                final_score = min(final_score, 45)
+            elif max_sector_weight > 0.40:
+                final_score = min(final_score, 60)
+
+            final_score = round(final_score, 1)
 
             # Round sector weights for display
             sector_display = {k: round(v * 100, 1) for k, v in sector_weights.items()}
@@ -1314,6 +1430,7 @@ def create_app(config_class=Config):
                 "asset_class_count": asset_class_count,
                 "asset_classes": class_display,
                 "holdings_count": n,
+                "crypto_count": crypto_count,
                 "recommendations": recommendations,
             }), 200
 

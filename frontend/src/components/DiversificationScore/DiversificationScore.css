@@ -232,7 +232,7 @@
 .ds-rec-suggestion {
   margin: 0.3rem 0 0;
   font-size: 0.78rem;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   line-height: 1.4;
 }
 

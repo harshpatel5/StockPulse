@@ -200,8 +200,9 @@ export const DiversificationScore = ({ token, livePrices }) => {
           </div>
 
           <div className="ds-meta">
-            {data.holdings_count} holdings across {data.sector_count} sectors
-            and {data.asset_class_count} asset class{data.asset_class_count !== 1 ? 'es' : ''}
+            {data.holdings_count} holdings across {data.sector_count} sector{data.sector_count !== 1 ? 's' : ''}
+            {data.crypto_count > 0 && `, ${data.crypto_count} crypto asset${data.crypto_count !== 1 ? 's' : ''}`}
+            {' '}and {data.asset_class_count} asset class{data.asset_class_count !== 1 ? 'es' : ''}
           </div>
         </div>
       </div>

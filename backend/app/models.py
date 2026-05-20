@@ -19,6 +19,7 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(120), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(255), nullable=False)
+    is_demo = db.Column(db.Boolean, default=False, nullable=False)
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     
     # One user can have many assets
@@ -37,6 +38,7 @@ class User(db.Model):
         return {
             'id': self.id,
             'email': self.email,
+            'is_demo': self.is_demo,
             'created_at': self.created_at.isoformat()
         }
     

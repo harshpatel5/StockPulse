@@ -418,6 +418,40 @@
   background: #333333;
 }
 
+.cta-buttons {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.btn-cta-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 1.125rem 2.25rem;
+  background: transparent;
+  color: #1a1a1a;
+  border: 1.5px solid #1a1a1a;
+  border-radius: 100rem;
+  font-weight: 500;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.76, 0, 0.24, 1);
+  min-height: 3.5rem;
+}
+
+.btn-cta-secondary:hover {
+  background: rgba(26, 26, 26, 0.06);
+}
+
+.btn-cta-secondary:disabled,
+.btn-secondary-landing:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 /* ========== Footer ========== */
 
 .landing-footer-new {
