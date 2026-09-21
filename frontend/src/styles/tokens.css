@@ -1,0 +1,128 @@
+/* Design tokens: the single source for color, type, shape, motion and layout.
+   Motion values mirror src/lib/motion.js, so keep the two in sync. */
+
+:root {
+  /* Type */
+  --font-sans: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-display: "DM Serif Display", Georgia, serif;
+
+  /* Surfaces (warm light theme) */
+  --bg-primary: #fcfcfc;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f1f0f0;
+  --bg-card: #ffffff;
+  --bg-elevated: #ffffff;
+  --bg-linen: #eeece7;
+  --bg-linen-light: #faf8f5;
+  --bg-sand: #d9cec5;
+  --surface-input: #ffffff;
+  --surface-inset: #f1f0f0;
+  --surface-overlay: rgba(50, 48, 47, 0.4);
+  --nav-bg: rgba(255, 255, 255, 0.92);
+
+  /* Text */
+  --text-strong: #1a1a1a;
+  --text-strong-hover: #333333;
+  --text-primary: #32302f;
+  --text-secondary: #686664;
+  --text-on-sand: #4a4845;
+  --text-muted: #6f6a67;
+
+  /* Accent and status */
+  --accent-primary: #32302f;
+  --accent-hover: #494645;
+  --success: #486635;
+  --error: #a43d12;
+  --warning: #8a5a00;
+  --info: #3d5a73;
+
+  /* Borders */
+  --border-color: #e4e2e1;
+  --border-active: #afaaa7;
+  --border-light: #e4e2e1;
+
+  /* Focus */
+  --focus-color: #32302f;
+  --focus-offset: 2px;
+
+  /* Shape and depth */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-card: 0.75rem;
+  --radius-pill: 100rem;
+  --shadow-elevated: 0 12px 32px -12px rgba(16, 24, 40, 0.18);
+
+  /* Motion */
+  --dur-fast: 120ms;
+  --dur-base: 200ms;
+  --dur-slow: 320ms;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --transition: var(--dur-base) var(--ease-out);
+
+  /* Layout */
+  --nav-height: 5.5rem;
+  --gap-grid: 1rem;
+  --gap-section: 1.5rem;
+  --z-banner: 900;
+  --z-nav: 1000;
+  --z-dropdown: 1010;
+  --z-modal: 1100;
+}
+
+@media (max-width: 768px) {
+  :root {
+    --nav-height: 4.5rem;
+  }
+}
+
+/* Dark theme: the dashboard, plus anything portaled while it is mounted */
+:root[data-theme="dark"],
+.dashboard-dark {
+  --bg-primary: #0f0f0f;
+  --bg-secondary: #1a1a1a;
+  --bg-tertiary: #252525;
+  --bg-card: #1a1a1a;
+  --bg-elevated: #222222;
+  --bg-linen: #1e1e1e;
+  --bg-linen-light: #141414;
+  --surface-input: #252525;
+  --surface-inset: #252525;
+  --surface-overlay: rgba(0, 0, 0, 0.6);
+  --nav-bg: rgba(15, 15, 15, 0.92);
+
+  --text-strong: #e8e6e3;
+  --text-strong-hover: #cccccc;
+  --text-primary: #e8e6e3;
+  --text-secondary: #a1a1a1;
+  --text-muted: #918f8c;
+
+  --accent-primary: #e8e6e3;
+  --accent-hover: #cccccc;
+  --success: #4ade80;
+  --error: #f87171;
+  --warning: #fbbf24;
+  --info: #60a5fa;
+
+  --border-color: #2a2a2a;
+  --border-active: #404040;
+  --border-light: #2a2a2a;
+
+  --focus-color: #e8e6e3;
+  --shadow-elevated: 0 16px 40px -12px rgba(0, 0, 0, 0.6);
+}
+
+/* Tints derive from status colors, so they are redeclared on every theme scope to recompute */
+:root,
+:root[data-theme="dark"],
+.dashboard-dark {
+  --success-tint: color-mix(in srgb, var(--success) 10%, transparent);
+  --success-border: color-mix(in srgb, var(--success) 28%, transparent);
+  --error-tint: color-mix(in srgb, var(--error) 10%, transparent);
+  --error-border: color-mix(in srgb, var(--error) 28%, transparent);
+  --warning-tint: color-mix(in srgb, var(--warning) 10%, transparent);
+  --warning-border: color-mix(in srgb, var(--warning) 28%, transparent);
+  --info-tint: color-mix(in srgb, var(--info) 10%, transparent);
+  --info-border: color-mix(in srgb, var(--info) 28%, transparent);
+}

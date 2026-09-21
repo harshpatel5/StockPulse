@@ -127,23 +127,23 @@
   padding: 0.75rem 1rem;
   border-radius: var(--radius-card);
   margin-bottom: 1rem;
-  animation: slideIn 0.3s ease;
+  animation: slideIn var(--dur-slow) var(--ease-out);
 }
 
 @keyframes slideIn {
-  from { opacity: 0; transform: translateY(-10px); }
+  from { opacity: 0; transform: translateY(-6px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
 .performance-message.positive {
-  background: rgba(72, 102, 53, 0.08);
-  border: 1px solid rgba(72, 102, 53, 0.2);
+  background: var(--success-tint);
+  border: 1px solid var(--success-border);
   color: var(--success);
 }
 
 .performance-message.negative {
-  background: rgba(164, 61, 18, 0.08);
-  border: 1px solid rgba(164, 61, 18, 0.2);
+  background: var(--error-tint);
+  border: 1px solid var(--error-border);
   color: var(--error);
 }
 

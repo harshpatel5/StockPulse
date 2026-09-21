@@ -103,8 +103,8 @@
 .mc-excluded {
   margin: 0.75rem 0 0;
   padding: 0.6rem 1rem;
-  background: rgba(164, 61, 18, 0.06);
-  border: 1px solid rgba(164, 61, 18, 0.15);
+  background: var(--warning-tint);
+  border: 1px solid var(--warning-border);
   border-radius: 0.5rem;
   font-size: 0.8rem;
   color: var(--text-secondary);
