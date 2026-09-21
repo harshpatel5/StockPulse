@@ -26,7 +26,7 @@ html {
 }
 
 /* Press feedback */
-:where(.btn, .btn-nav-login, .btn-nav-start, .btn-primary-landing, .btn-secondary-landing, .btn-cta, .btn-cta-secondary):active:not(:disabled) {
+:where(.btn, .btn-nav-login, .btn-nav-start, .btn-landing):active:not(:disabled) {
   transform: scale(0.98);
 }
 
@@ -86,7 +86,8 @@ html {
   }
 
   /* Loaders are the one place continuous motion still helps */
-  .loading-spinner {
+  .loading-spinner,
+  .btn-spinner {
     animation-duration: 1.6s !important;
     animation-iteration-count: infinite !important;
   }

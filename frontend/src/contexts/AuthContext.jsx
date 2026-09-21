@@ -130,7 +130,8 @@ export const AuthProvider = ({ children }) => {
   const handleRegister = async () => {
     await register(credentials);
     setAuthMode('login');
-    setCredentials({ email: '', password: '' });
+    // Keep the email so only the password has to be retyped
+    setCredentials((prev) => ({ ...prev, password: '' }));
     return { success: true, message: 'Account created. Please sign in.' };
   };
 

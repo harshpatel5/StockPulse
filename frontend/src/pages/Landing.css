@@ -58,55 +58,72 @@
   align-items: center;
 }
 
-.btn-primary-landing {
+.btn-landing {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
   padding: 1rem 2rem;
-  background: var(--text-strong);
+  min-height: 3.25rem;
+  border: 1.5px solid transparent;
   border-radius: var(--radius-pill);
   font-weight: 500;
   font-size: 1rem;
-  color: var(--bg-secondary);
-  text-decoration: none;
-  transition: background-color var(--transition), transform var(--dur-fast) var(--ease-out);
-  border: none;
-  min-height: 3.25rem;
   letter-spacing: 0.01em;
-}
-
-.btn-primary-landing:hover {
-  background: var(--text-strong-hover);
-}
-
-.btn-secondary-landing {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 0.875rem 1.75rem;
-  border: 1.5px solid var(--text-strong);
-  border-radius: var(--radius-pill);
-  font-weight: 500;
-  font-size: 1rem;
-  color: var(--text-strong);
   text-decoration: none;
-  transition: background-color var(--transition), transform var(--dur-fast) var(--ease-out);
-  background: transparent;
-  min-height: 3.25rem;
+  transition: background-color var(--transition), border-color var(--transition),
+    color var(--transition), opacity var(--transition), transform var(--dur-fast) var(--ease-out);
 }
 
-.btn-secondary-landing:hover {
+.btn-landing--primary {
+  background: var(--text-strong);
+  border-color: var(--text-strong);
+  color: var(--bg-secondary);
+}
+
+.btn-landing--primary:hover:not(:disabled) {
+  background: var(--text-strong-hover);
+  border-color: var(--text-strong-hover);
+}
+
+.btn-landing--secondary {
+  background: transparent;
+  border-color: var(--text-strong);
+  color: var(--text-strong);
+}
+
+.btn-landing--secondary:hover:not(:disabled) {
   background: color-mix(in srgb, var(--text-strong) 6%, transparent);
 }
 
-.btn-secondary-landing svg {
+.btn-landing--lg {
+  padding: 1.125rem 2.25rem;
+  min-height: 3.5rem;
+  font-size: 1.1rem;
+}
+
+.btn-landing:disabled {
+  opacity: 0.6;
+}
+
+.btn-landing svg {
   transition: transform var(--dur-base) var(--ease-out);
 }
 
-.btn-secondary-landing:hover svg {
+.btn-landing--secondary:hover:not(:disabled) svg {
   transform: translateX(3px);
+}
+
+.landing-cta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.landing-cta-error {
+  margin: 0;
+  color: var(--error);
+  font-size: 0.9rem;
 }
 
 /* Hero Visual */
@@ -205,15 +222,6 @@
   color: var(--text-strong);
 }
 
-.typewriter-cursor {
-  animation: blink 1s step-end infinite;
-  color: var(--text-muted);
-}
-
-@keyframes blink {
-  50% { opacity: 0; }
-}
-
 .section-subtitle {
   font-size: clamp(1rem, 2vw, 1.15rem);
   color: var(--text-on-sand);
@@ -280,13 +288,12 @@
   border-radius: 1rem;
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
-  transition: border-color var(--transition), transform var(--dur-base) var(--ease-out);
+  transition: border-color var(--transition);
   text-align: left;
 }
 
 .landing-page .feature-card:hover {
   border-color: var(--border-active);
-  transform: translateY(-2px);
 }
 
 .feature-icon {
@@ -399,58 +406,11 @@
   line-height: 1.55;
 }
 
-.btn-cta {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 1.125rem 2.25rem;
-  background: var(--text-strong);
-  color: var(--bg-secondary);
-  border-radius: var(--radius-pill);
-  font-weight: 500;
-  font-size: 1.1rem;
-  text-decoration: none;
-  transition: background-color var(--transition), transform var(--dur-fast) var(--ease-out);
-  border: none;
-  min-height: 3.5rem;
-}
-
-.btn-cta:hover {
-  background: var(--text-strong-hover);
-}
-
 .cta-buttons {
   display: flex;
   gap: 1rem;
   justify-content: center;
   flex-wrap: wrap;
-}
-
-.btn-cta-secondary {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 1.125rem 2.25rem;
-  background: transparent;
-  color: var(--text-strong);
-  border: 1.5px solid var(--text-strong);
-  border-radius: var(--radius-pill);
-  font-weight: 500;
-  font-size: 1.1rem;
-  transition: background-color var(--transition), transform var(--dur-fast) var(--ease-out);
-  min-height: 3.5rem;
-}
-
-.btn-cta-secondary:hover {
-  background: color-mix(in srgb, var(--text-strong) 6%, transparent);
-}
-
-.btn-cta-secondary:disabled,
-.btn-secondary-landing:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
 }
 
 /* ========== Footer ========== */

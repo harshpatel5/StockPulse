@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useNavigate, Link } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { MotionConfig } from 'framer-motion';
 import { useAuth } from './hooks/useAuth';
 import { useAssets } from './hooks/useAssets';
@@ -188,8 +188,13 @@ const Dashboard = () => {
 // Login page wrapper
 const LoginPage = () => {
   const navigate = useNavigate();
-  const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState(null);
+  const [searchParams] = useSearchParams();
+  const [pendingAction, setPendingAction] = useState(null);
+  const [message, setMessage] = useState(() =>
+    searchParams.get('reason') === 'expired'
+      ? { type: 'info', text: 'Your session expired. Please sign in again.' }
+      : null
+  );
   const submittingRef = useRef(false);
   const { isAuthenticated, isValidating, authMode, setAuthMode, credentials, setCredentials, handleLogin, handleRegister, handleDemoLogin, triggerValidation } = useAuth();
 
@@ -197,6 +202,14 @@ const LoginPage = () => {
   useEffect(() => {
     triggerValidation();
   }, []);
+
+  // "Get started" links arrive with ?mode=register
+  useEffect(() => {
+    const mode = searchParams.get('mode');
+    if (mode === 'register' || mode === 'login') {
+      setAuthMode(mode);
+    }
+  }, [searchParams, setAuthMode]);
 
   // Redirect to dashboard if already authenticated
   useEffect(() => {
@@ -206,13 +219,13 @@ const LoginPage = () => {
   }, [isAuthenticated, isValidating, navigate]);
 
   const onDemoLogin = async () => {
-    setBusy(true);
+    setPendingAction('demo');
     setMessage(null);
     try {
       await handleDemoLogin();
     } catch (error) {
       setMessage({ type: 'error', text: error.message || 'Demo login failed.' });
-      setBusy(false);
+      setPendingAction(null);
     }
   };
 
@@ -220,12 +233,12 @@ const LoginPage = () => {
     event.preventDefault();
     
     // Prevent duplicate submissions
-    if (submittingRef.current || busy) {
+    if (submittingRef.current || pendingAction) {
       return;
     }
-    
+
     submittingRef.current = true;
-    setBusy(true);
+    setPendingAction('submit');
     setMessage(null);
     
     try {
@@ -240,7 +253,7 @@ const LoginPage = () => {
       console.error('Auth error:', error);
       setMessage({ type: 'error', text: error.message || 'Authentication failed. Please try again.' });
     } finally {
-      setBusy(false);
+      setPendingAction(null);
       submittingRef.current = false;
     }
   };
@@ -265,7 +278,7 @@ const LoginPage = () => {
           credentials={credentials}
           setCredentials={setCredentials}
           handleSubmit={handleAuthSubmit}
-          busy={busy}
+          pendingAction={pendingAction}
           message={message}
           onDemoLogin={onDemoLogin}
         />

@@ -8,6 +8,7 @@ const TAGS = {
   section: motion.section,
   article: motion.article,
   header: motion.header,
+  h1: motion.h1,
   h2: motion.h2,
   h3: motion.h3,
   p: motion.p,
