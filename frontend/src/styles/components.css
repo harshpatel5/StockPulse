@@ -1,0 +1,218 @@
+/* Shared component styles: page loader, info button, compact segmented control, modal.
+   These are used by more than one feature, so they live here rather than in a
+   single chart's stylesheet. */
+
+.page-loader {
+  display: grid;
+  place-items: center;
+  min-height: 100dvh;
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+}
+
+/* ========== Info trigger button ========== */
+
+.info-btn {
+  position: relative;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color var(--transition), background-color var(--transition);
+  margin-left: 0.5rem;
+}
+
+/* Grows the touch target to ~44px without changing the header layout */
+.info-btn::after {
+  content: "";
+  position: absolute;
+  inset: -0.5rem;
+}
+
+.info-btn:hover {
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+}
+
+/* ========== Compact segmented control ========== */
+
+.timeframe-selector.compact {
+  display: flex;
+  gap: 0.2rem;
+  padding: 0.2rem;
+  background: var(--surface-inset);
+  border-radius: var(--radius-card);
+}
+
+.timeframe-selector.compact .timeframe-btn {
+  padding: 0.35rem 0.65rem;
+  font-size: 0.75rem;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color var(--transition), background-color var(--transition);
+  font-weight: 500;
+}
+
+.timeframe-selector.compact .timeframe-btn:hover {
+  color: var(--text-primary);
+}
+
+.timeframe-selector.compact .timeframe-btn.active {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+:root[data-theme="dark"] .timeframe-selector.compact .timeframe-btn.active,
+.dashboard-dark .timeframe-selector.compact .timeframe-btn.active {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* ========== Modal ========== */
+
+.info-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--surface-overlay);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: var(--z-modal);
+  padding: 1rem;
+}
+
+.info-modal {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-card);
+  max-width: 500px;
+  width: 100%;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-elevated);
+  position: relative;
+  padding: 1.5rem;
+}
+
+.info-modal h3 {
+  margin: 0 2.5rem 1.5rem 0;
+  font-size: 1.1rem;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.info-modal-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  min-width: 2.25rem;
+  min-height: 2.25rem;
+  background: var(--bg-tertiary);
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color var(--transition), background-color var(--transition);
+}
+
+.info-modal-close::after {
+  content: "";
+  position: absolute;
+  inset: -0.35rem;
+}
+
+.info-modal-close:hover {
+  background: var(--error-tint);
+  color: var(--error);
+}
+
+.info-section {
+  margin-bottom: 1.25rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.info-section:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.info-section h4 {
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  margin: 0 0 0.5rem;
+  font-weight: 600;
+}
+
+.info-section p {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin: 0;
+}
+
+.info-section ul {
+  margin: 0.5rem 0 0;
+  padding-left: 1.25rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.8;
+}
+
+.info-section.tip {
+  background: var(--bg-tertiary);
+  margin: 0 -1.5rem -1.5rem;
+  padding: 1rem 1.5rem;
+  border-radius: 0 0 var(--radius-card) var(--radius-card);
+  border-bottom: none;
+}
+
+.info-section.tip h4 {
+  color: var(--text-primary);
+}
+
+/* Legend swatch that names a chart series without relying on an emoji */
+.info-swatch {
+  display: inline-block;
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 2px;
+  margin-right: 0.45rem;
+  vertical-align: middle;
+}
+
+.info-swatch.portfolio {
+  background: #f59e0b;
+}
+
+.info-swatch.benchmark {
+  background: #ef4444;
+}
+
+@media (max-width: 640px) {
+  .timeframe-selector.compact {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .timeframe-selector.compact .timeframe-btn {
+    flex: 1;
+    text-align: center;
+  }
+}

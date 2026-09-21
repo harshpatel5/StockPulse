@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, Link } from 'react-router-dom';
+import { MotionConfig } from 'framer-motion';
 import { useAuth } from './hooks/useAuth';
 import { useAssets } from './hooks/useAssets';
 import { usePortfolio } from './hooks/usePortfolio';
@@ -16,10 +17,13 @@ import { AssetForm } from './components/AssetForm';
 import { AssetList } from './components/AssetList';
 import { LoadingSpinner } from './components/LoadingSpinner';
 import Landing from './pages/Landing';
+import { PageFade } from './components/motion/PageFade';
+import { useDocumentTheme } from './hooks/useDocumentTheme';
 
 
 // Dashboard component (logged in view)
 const Dashboard = () => {
+  useDocumentTheme('dark');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState(null);
 
@@ -119,7 +123,7 @@ const Dashboard = () => {
           <Link to="/login" onClick={handleLogout}>Sign up for free</Link>
         </div>
       )}
-      <div className="app-shell">
+      <PageFade className="app-shell">
         <Header
           onRefresh={handleRefresh}
           fetchingAssets={fetchingAssets}
@@ -176,7 +180,7 @@ const Dashboard = () => {
         )}
         <AssetList assets={portfolioTotals.rows} onDelete={isDemo ? null : handleDeleteAsset} />
       </section>
-      </div>
+      </PageFade>
     </div>
   );
 };
@@ -246,24 +250,26 @@ const LoginPage = () => {
     return <LoadingSpinner />;
   }
 
-  // Don't show anything while redirecting authenticated users
+  // Keep the loader on screen while redirecting authenticated users
   if (isAuthenticated) {
-    return null;
+    return <LoadingSpinner />;
   }
 
   return (
     <>
       <Navbar />
-      <AuthForm
-        authMode={authMode}
-        setAuthMode={setAuthMode}
-        credentials={credentials}
-        setCredentials={setCredentials}
-        handleSubmit={handleAuthSubmit}
-        busy={busy}
-        message={message}
-        onDemoLogin={onDemoLogin}
-      />
+      <PageFade>
+        <AuthForm
+          authMode={authMode}
+          setAuthMode={setAuthMode}
+          credentials={credentials}
+          setCredentials={setCredentials}
+          handleSubmit={handleAuthSubmit}
+          busy={busy}
+          message={message}
+          onDemoLogin={onDemoLogin}
+        />
+      </PageFade>
     </>
   );
 };
@@ -271,13 +277,15 @@ const LoginPage = () => {
 // Main App with routing
 const App = () => {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Landing />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-      </Routes>
-    </BrowserRouter>
+    <MotionConfig reducedMotion="user">
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<Landing />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+        </Routes>
+      </BrowserRouter>
+    </MotionConfig>
   );
 };
 
