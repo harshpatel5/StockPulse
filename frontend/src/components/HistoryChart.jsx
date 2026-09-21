@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import {
   AreaChart,
   Area,
@@ -9,132 +9,95 @@ import {
   Tooltip,
 } from 'recharts';
 import { Activity } from 'lucide-react';
-import { currency } from '../utils/formatters';
+import { currency, compactCurrency, signedCurrency, percent, formatDateUTC } from '../utils/formatters';
+import { SERIES, axisProps, gridProps, TOOLTIP_CURSOR } from '../lib/chartTheme';
+import { useChartAnimation } from '../hooks/useChartAnimation';
+import { CardHeader } from './ui/CardHeader';
+import { SegmentedControl } from './ui/SegmentedControl';
+import { ChartState } from './ui/ChartState';
+import { ChartTooltip } from './ui/ChartTooltip';
+
+const TIMEFRAMES = [
+  { value: '7d', label: '7D', days: 7, required: 2 },
+  { value: '30d', label: '1M', days: 30, required: 7 },
+  { value: '3m', label: '3M', days: 90, required: 30 },
+  { value: '6m', label: '6M', days: 180, required: 90 },
+  { value: '1y', label: '1Y', days: 365, required: 180 },
+  { value: 'all', label: 'ALL', days: null, required: 1 },
+];
+
+const HistoryTooltip = ({ active, payload, label, color }) => {
+  if (!active || !payload?.length) return null;
+
+  return (
+    <ChartTooltip
+      title={formatDateUTC(label, 'long')}
+      rows={[{ label: 'Value', value: currency(payload[0].value), color }]}
+    />
+  );
+};
 
 export const HistoryChart = ({ lineSeries }) => {
   const [timeframe, setTimeframe] = useState('all');
-
-  // Calculate total days of data available
-  const totalDaysOfData = useMemo(() => {
-    if (!lineSeries.length) return 0;
-    return lineSeries.length;
-  }, [lineSeries]);
-
-  // Determine which timeframe buttons should be enabled
-  const getButtonState = (option) => {
-    const daysRequired = {
-      '7d': 2,
-      '30d': 7,
-      '3m': 30,
-      '6m': 90,
-      '1y': 180,
-      'all': 1,
-    };
-    return totalDaysOfData >= daysRequired[option];
-  };
+  const animation = useChartAnimation();
 
   // Filter data based on selected timeframe
   const filteredData = useMemo(() => {
     if (!lineSeries.length) return [];
 
-    const now = new Date();
-    let daysAgo = 30;
+    const option = TIMEFRAMES.find((item) => item.value === timeframe);
+    if (!option?.days) return lineSeries;
 
-    switch (timeframe) {
-      case '7d':
-        daysAgo = 7;
-        break;
-      case '30d':
-        daysAgo = 30;
-        break;
-      case '3m':
-        daysAgo = 90;
-        break;
-      case '6m':
-        daysAgo = 180;
-        break;
-      case '1y':
-        daysAgo = 365;
-        break;
-      case 'all':
-        return lineSeries;
-      default:
-        daysAgo = 30;
-    }
-
-    const cutoffDate = new Date(now.getTime() - daysAgo * 24 * 60 * 60 * 1000);
-    return lineSeries.filter((item) => {
-      const itemDate = new Date(item.timestamp);
-      return itemDate >= cutoffDate;
-    });
+    const cutoffDate = new Date(Date.now() - option.days * 24 * 60 * 60 * 1000);
+    return lineSeries.filter((item) => new Date(item.timestamp) >= cutoffDate);
   }, [lineSeries, timeframe]);
 
-  // Calculate domain for Y-axis to show only the relevant data range
+  // Y-axis domain padded around the visible range
   const yDomain = useMemo(() => {
     if (!filteredData.length) return [0, 1];
-    
-    const values = filteredData.map(d => d.value);
+
+    const values = filteredData.map((d) => d.value);
     const min = Math.min(...values);
     const max = Math.max(...values);
-    const range = max - min;
-    
-    const padding = range * 0.1 || Math.abs(min) * 0.1 || 100;
-    
-    return [
-      Math.max(0, min - padding),
-      max + padding
-    ];
+    const padding = (max - min) * 0.1 || Math.abs(min) * 0.1 || 100;
+
+    return [Math.max(0, min - padding), max + padding];
   }, [filteredData]);
 
-  // Calculate current value and change
-  const currentValue = filteredData.length > 0 ? filteredData[filteredData.length - 1].value : 0;
-  const startValue = filteredData.length > 0 ? filteredData[0].value : 0;
+  const currentValue = filteredData.length ? filteredData[filteredData.length - 1].value : 0;
+  const startValue = filteredData.length ? filteredData[0].value : 0;
   const valueChange = currentValue - startValue;
-  const percentChange = startValue > 0 ? ((valueChange / startValue) * 100) : 0;
+  const percentChange = startValue > 0 ? (valueChange / startValue) * 100 : 0;
   const isPositive = valueChange >= 0;
+  const lineColor = isPositive ? SERIES.positive : SERIES.negative;
 
-  const timeframeOptions = [
-    { value: '7d', label: '7D' },
-    { value: '30d', label: '1M' },
-    { value: '3m', label: '3M' },
-    { value: '6m', label: '6M' },
-    { value: '1y', label: '1Y' },
-    { value: 'all', label: 'ALL' },
-  ];
+  const timeframeOptions = TIMEFRAMES.map((option) => ({
+    value: option.value,
+    label: option.label,
+    disabled: lineSeries.length < option.required,
+    title: lineSeries.length < option.required ? `Need more data for ${option.label} view` : undefined,
+  }));
 
   return (
     <article className="card chart-card">
-      <div className="card-head">
-        <Activity size={18} />
-        <span>Portfolio Value Over Time</span>
-      </div>
+      <CardHeader icon={Activity} title="Portfolio Value Over Time" />
 
-      {/* Current Value Display */}
       {filteredData.length > 0 && (
         <div className="chart-value-display">
-          <span className="chart-current-value">{currency(currentValue)}</span>
-          <span className={`chart-value-change ${isPositive ? 'positive' : 'negative'}`}>
-            {isPositive ? '+' : ''}{currency(valueChange)} ({isPositive ? '+' : ''}{percentChange.toFixed(2)}%)
+          <span className="chart-current-value tabular">{currency(currentValue)}</span>
+          <span className={`chart-value-change tabular ${isPositive ? 'positive' : 'negative'}`}>
+            {signedCurrency(valueChange)} ({percent(percentChange, { signed: true })})
           </span>
         </div>
       )}
 
-      {/* Timeframe Selector */}
-      <div className="timeframe-selector">
-        {timeframeOptions.map((option) => {
-          const isEnabled = getButtonState(option.value);
-          return (
-            <button
-              key={option.value}
-              onClick={() => isEnabled && setTimeframe(option.value)}
-              className={`timeframe-btn ${timeframe === option.value ? 'active' : ''} ${!isEnabled ? 'disabled' : ''}`}
-              disabled={!isEnabled}
-              title={!isEnabled ? `Need more data for ${option.label} view` : ''}
-            >
-              {option.label}
-            </button>
-          );
-        })}
+      <div className="chart-controls">
+        <SegmentedControl
+          options={timeframeOptions}
+          value={timeframe}
+          onChange={setTimeframe}
+          label="History timeframe"
+        />
       </div>
 
       {filteredData.length > 0 ? (
@@ -142,90 +105,45 @@ export const HistoryChart = ({ lineSeries }) => {
           <AreaChart data={filteredData} margin={{ top: 10, right: 20, left: 50, bottom: 50 }}>
             <defs>
               <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor={isPositive ? "#4ade80" : "#f87171"} stopOpacity={0.15}/>
-                <stop offset="95%" stopColor={isPositive ? "#4ade80" : "#f87171"} stopOpacity={0}/>
+                <stop offset="5%" stopColor={lineColor} stopOpacity={0.15} />
+                <stop offset="95%" stopColor={lineColor} stopOpacity={0} />
               </linearGradient>
             </defs>
-            <CartesianGrid
-              strokeDasharray="3 3"
-              stroke="#2a2a2a"
-              strokeOpacity={0.5}
-              horizontal={true}
-              vertical={false}
-            />
+            <CartesianGrid {...gridProps} strokeOpacity={0.5} />
             <XAxis
               dataKey="fullDate"
-              stroke="#404040"
-              tick={{ fill: '#6b6b6b', fontSize: 11 }}
-              tickLine={false}
-              axisLine={{ stroke: '#2a2a2a', strokeWidth: 1 }}
+              {...axisProps}
               angle={-45}
               textAnchor="end"
               height={70}
-              tickFormatter={(value) => {
-                const date = new Date(value);
-                return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
-              }}
+              tickFormatter={(value) => formatDateUTC(value)}
               interval={filteredData.length <= 7 ? 0 : Math.ceil(filteredData.length / 6)}
             />
             <YAxis
-              stroke="#404040"
-              tick={{ fill: '#6b6b6b', fontSize: 11 }}
-              tickLine={false}
-              axisLine={{ stroke: '#2a2a2a', strokeWidth: 1 }}
-              tickFormatter={(value) => {
-                if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
-                if (value >= 1000) return `$${(value / 1000).toFixed(1)}K`;
-                return `$${value.toFixed(0)}`;
-              }}
+              {...axisProps}
+              tickFormatter={(value) => compactCurrency(value)}
               domain={yDomain}
               width={50}
             />
-            <Tooltip
-              formatter={(value) => [currency(value), 'Value']}
-              labelFormatter={(label) => {
-                const date = new Date(label);
-                return date.toLocaleDateString('en-US', {
-                  weekday: 'short',
-                  month: 'short',
-                  day: 'numeric',
-                  year: 'numeric',
-                  timeZone: 'UTC'
-                });
-              }}
-              contentStyle={{
-                backgroundColor: '#1a1a1a',
-                border: '1px solid #2a2a2a',
-                borderRadius: '0.75rem',
-                filter: 'drop-shadow(0 0.16rem 0.16rem rgba(0, 0, 0, 0.3))',
-                padding: '10px 14px'
-              }}
-              labelStyle={{ color: '#e8e6e3', fontWeight: '600', marginBottom: '4px' }}
-              itemStyle={{ color: isPositive ? '#4ade80' : '#f87171' }}
-              cursor={{ stroke: '#404040', strokeDasharray: '4 4' }}
-            />
+            <Tooltip content={<HistoryTooltip color={lineColor} />} cursor={TOOLTIP_CURSOR} />
             <Area
               type="monotone"
               dataKey="value"
-              stroke={isPositive ? "#4ade80" : "#f87171"}
+              stroke={lineColor}
               strokeWidth={2}
               fill="url(#colorValue)"
               dot={false}
-              activeDot={{
-                fill: isPositive ? "#4ade80" : "#f87171",
-                r: 5,
-                stroke: '#1a1a1a',
-                strokeWidth: 2
-              }}
+              activeDot={{ fill: lineColor, r: 5, stroke: '#1a1a1a', strokeWidth: 2 }}
+              {...animation}
             />
           </AreaChart>
         </ResponsiveContainer>
       ) : (
-        <div className="chart-placeholder">
-          <Activity size={48} className="placeholder-icon" />
-          <p>No portfolio history yet</p>
-          <span>Add assets and your chart will build automatically</span>
-        </div>
+        <ChartState
+          icon={Activity}
+          message="No portfolio history yet"
+          hint="Add assets and your chart will build automatically"
+        />
       )}
     </article>
   );

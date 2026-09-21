@@ -1,14 +1,12 @@
-import React from 'react';
 import { Activity, Trash2 } from 'lucide-react';
-import { currency } from '../utils/formatters';
+import { currency, signedCurrency, percent } from '../utils/formatters';
+import { CardHeader } from './ui/CardHeader';
+import { ChartState } from './ui/ChartState';
 
 export const AssetList = ({ assets, onDelete }) => {
   return (
     <article className="card asset-card">
-      <div className="card-head">
-        <Activity size={18} />
-        <span>Your holdings</span>
-      </div>
+      <CardHeader icon={Activity} title="Your holdings" />
       {assets.length ? (
         <div className="asset-list">
           {assets.map((asset) => (
@@ -46,8 +44,7 @@ export const AssetList = ({ assets, onDelete }) => {
                 <div>
                   <span>Change</span>
                   <strong className={asset.change >= 0 ? 'positive' : 'negative'}>
-                    {asset.change >= 0 ? '+' : '-'}
-                    {currency(Math.abs(asset.change))} ({asset.changePct.toFixed(2)}%)
+                    {signedCurrency(asset.change)} ({percent(asset.changePct, { signed: true })})
                   </strong>
                 </div>
               </div>
@@ -55,7 +52,7 @@ export const AssetList = ({ assets, onDelete }) => {
           ))}
         </div>
       ) : (
-        <p className="placeholder">Add your first asset to get started.</p>
+        <ChartState height={200} message="Add your first asset to get started." />
       )}
     </article>
   );

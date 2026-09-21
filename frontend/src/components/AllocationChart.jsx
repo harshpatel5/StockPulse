@@ -1,126 +1,140 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { PieChart as PieChartIcon, TrendingUp, TrendingDown, Layers } from 'lucide-react';
-import { currency } from '../utils/formatters';
+import { currency, percent } from '../utils/formatters';
+import { CATEGORICAL } from '../lib/chartTheme';
+import { useChartAnimation } from '../hooks/useChartAnimation';
 import { fetchPortfolioInsights } from '../services/api';
 import { dedupeRequest } from '../utils/requestDeduplication';
+import { CardHeader } from './ui/CardHeader';
+import { SegmentedControl } from './ui/SegmentedControl';
+import { ChartState } from './ui/ChartState';
+import { ChartTooltip } from './ui/ChartTooltip';
 
-// Extended color palette matching the reference image style
-const CHART_COLORS = [
-  '#2B9EB3', // Teal (Rent)
-  '#C94C4C', // Red (Food)
-  '#D4A84B', // Gold/Amber (Utilities)
-  '#E87C4F', // Orange (Leisure)
-  '#7D8C93', // Gray-blue (Clothes)
-  '#3498DB', // Blue (Phone)
-  '#9B59B6', // Purple
-  '#1ABC9C', // Turquoise
-  '#E74C3C', // Bright Red
-  '#F39C12', // Yellow-orange
-  '#27AE60', // Green
-  '#8E44AD', // Deep Purple
+const VIEW_OPTIONS = [
+  { value: 'asset', label: 'By Asset', icon: <Layers size={14} aria-hidden="true" /> },
+  { value: 'type', label: 'By Type', icon: <PieChartIcon size={14} aria-hidden="true" /> },
 ];
 
-// Format percentage - never show 0% if there's any value
+// Never show 0% when there is any value at all
 const formatPercentage = (value) => {
   if (value === 0) return '0%';
   if (value < 0.01) return '<0.01%';
-  if (value < 0.1) return value.toFixed(2) + '%';
-  if (value < 1) return value.toFixed(1) + '%';
-  return Math.round(value) + '%';
+  if (value < 0.1) return percent(value, { digits: 2 });
+  if (value < 1) return percent(value, { digits: 1 });
+  return `${Math.round(value)}%`;
 };
 
-// Custom label that renders on the pie segments
-const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, name }) => {
-  // Don't render label for very small segments
-  if (percent < 0.03) return null;
-  
+// Categorical hues are assigned in fixed order and never cycled, so anything
+// past the last slot folds into a single "Other" slice.
+const foldToOther = (rows) => {
+  if (rows.length <= CATEGORICAL.length) return rows;
+
+  const sorted = [...rows].sort((a, b) => (b.value || 0) - (a.value || 0));
+  const head = sorted.slice(0, CATEGORICAL.length - 1);
+  const rest = sorted.slice(CATEGORICAL.length - 1);
+
+  const other = rest.reduce(
+    (acc, row) => ({
+      ...acc,
+      value: acc.value + (row.value || 0),
+      percentage: acc.percentage + (row.percentage || 0),
+    }),
+    { name: 'Other', type: 'Other', value: 0, percentage: 0, count: rest.length }
+  );
+
+  return [...head, other];
+};
+
+// Label drawn on each segment
+const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent: fraction }) => {
+  if (fraction < 0.03) return null;
+
   const RADIAN = Math.PI / 180;
   const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
   const x = cx + radius * Math.cos(-midAngle * RADIAN);
   const y = cy + radius * Math.sin(-midAngle * RADIAN);
 
   return (
-    <text 
-      x={x} 
-      y={y} 
-      fill="white" 
-      textAnchor="middle" 
+    <text
+      x={x}
+      y={y}
+      fill="white"
+      textAnchor="middle"
       dominantBaseline="central"
-      style={{ 
-        fontSize: '12px', 
-        fontWeight: '600',
-        textShadow: '0 1px 2px rgba(0,0,0,0.5)'
-      }}
+      style={{ fontSize: '12px', fontWeight: '600', textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}
     >
-      {formatPercentage(percent * 100)}
+      {formatPercentage(fraction * 100)}
     </text>
   );
 };
 
-// Custom tooltip for the chart
-const CustomTooltip = ({ active, payload }) => {
-  if (active && payload && payload.length) {
-    const data = payload[0].payload;
-    const displayPct = formatPercentage(data.percentage);
-    return (
-      <div className="chart-tooltip">
-        <p className="tooltip-label">{data.name || data.type}</p>
-        <p className="tooltip-value">{currency(data.value)}</p>
-        <p className="tooltip-pct">{displayPct} of portfolio</p>
-      </div>
-    );
-  }
-  return null;
-};
+const AllocationTooltip = ({ active, payload }) => {
+  if (!active || !payload?.length) return null;
 
-// Custom legend that shows allocation list with proper small value handling
-const AllocationLegend = ({ data }) => {
+  const data = payload[0].payload;
   return (
-    <div className="allocation-legend">
-      {data.map((entry, index) => (
-        <div key={entry.name || entry.type} className="legend-item">
-          <div className="legend-color" style={{ backgroundColor: CHART_COLORS[index % CHART_COLORS.length] }} />
-          <div className="legend-info">
-            <span className="legend-name">{entry.name || entry.type}</span>
-            <span className="legend-pct">{formatPercentage(entry.percentage)}</span>
-          </div>
-          <span className="legend-value">{currency(entry.value)}</span>
-        </div>
-      ))}
-    </div>
+    <ChartTooltip
+      title={data.name || data.type}
+      rows={[
+        { label: 'Value', value: currency(data.value), color: payload[0].color },
+        { label: 'Share', value: `${formatPercentage(data.percentage)} of portfolio` },
+      ]}
+    />
   );
 };
 
+const AllocationLegend = ({ data }) => (
+  <div className="allocation-legend">
+    {data.map((entry, index) => (
+      <div key={entry.name || entry.type} className="legend-item">
+        <div className="legend-color" style={{ backgroundColor: CATEGORICAL[index] }} />
+        <div className="legend-info">
+          <span className="legend-name">
+            {entry.name || entry.type}
+            {entry.count ? ` (${entry.count})` : ''}
+          </span>
+          <span className="legend-pct tabular">{formatPercentage(entry.percentage)}</span>
+        </div>
+        <span className="legend-value tabular">{currency(entry.value)}</span>
+      </div>
+    ))}
+  </div>
+);
+
 export const AllocationChart = ({ allocationData, token, livePrices }) => {
-  const [viewMode, setViewMode] = useState('asset'); // 'asset' or 'type'
+  const [viewMode, setViewMode] = useState('asset');
   const [insights, setInsights] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const prevPricesRef = useRef(null);
   const fetchTimeoutRef = useRef(null);
+  const animation = useChartAnimation();
 
   // Fetch insights from backend when prices change
   useEffect(() => {
     const fetchInsights = async () => {
       if (!token || !livePrices || Object.keys(livePrices).length === 0) return;
-      
+
       // Check if prices actually changed
       const pricesStr = JSON.stringify(livePrices);
       if (prevPricesRef.current === pricesStr) return;
       prevPricesRef.current = pricesStr;
-      
+
       setLoading(true);
+      setError(null);
       try {
         // Use deduplication with a key based on token and prices hash
-        const pricesHash = pricesStr.substring(0, 50); // Use first 50 chars as hash
+        const pricesHash = pricesStr.substring(0, 50);
         const data = await dedupeRequest(
           `fetchInsights:${token}:${pricesHash}`,
           () => fetchPortfolioInsights(token, livePrices),
-          500 // 500ms dedupe window
+          500
         );
         setInsights(data);
-      } catch (error) {
-        console.warn('Failed to fetch portfolio insights:', error);
+      } catch (err) {
+        console.warn('Failed to fetch portfolio insights:', err);
+        setError(err?.message || 'Could not load your allocation.');
       } finally {
         setLoading(false);
       }
@@ -132,9 +146,7 @@ export const AllocationChart = ({ allocationData, token, livePrices }) => {
     }
 
     // Debounce to prevent multiple rapid calls
-    fetchTimeoutRef.current = setTimeout(() => {
-      fetchInsights();
-    }, 300);
+    fetchTimeoutRef.current = setTimeout(fetchInsights, 300);
 
     return () => {
       if (fetchTimeoutRef.current) {
@@ -143,97 +155,85 @@ export const AllocationChart = ({ allocationData, token, livePrices }) => {
     };
   }, [token, livePrices]);
 
-  // Get data based on view mode
-  const chartData = viewMode === 'asset' 
-    ? (insights?.by_asset || [])
-    : (insights?.by_type || allocationData || []);
-
+  const rawData = viewMode === 'asset' ? insights?.by_asset || [] : insights?.by_type || allocationData || [];
+  const chartData = foldToOther(rawData);
   const hasData = chartData.length > 0;
+  const retry = () => {
+    prevPricesRef.current = null;
+    setError(null);
+  };
+
+  let body;
+  if (loading && !hasData) {
+    body = <ChartState status="loading" message="Calculating allocation" />;
+  } else if (error && !hasData) {
+    body = <ChartState status="error" message={error} onRetry={retry} />;
+  } else if (hasData) {
+    body = (
+      <div className="allocation-content">
+        <div className="chart-container">
+          <ResponsiveContainer width="100%" height={280}>
+            <PieChart>
+              <Pie
+                data={chartData}
+                dataKey="value"
+                nameKey={viewMode === 'asset' ? 'name' : 'type'}
+                cx="50%"
+                cy="50%"
+                innerRadius={70}
+                outerRadius={120}
+                paddingAngle={1}
+                strokeWidth={0}
+                label={renderCustomLabel}
+                labelLine={false}
+                {...animation}
+              >
+                {chartData.map((entry, index) => (
+                  <Cell key={entry.name || entry.type} fill={CATEGORICAL[index]} />
+                ))}
+              </Pie>
+              <Tooltip content={<AllocationTooltip />} />
+            </PieChart>
+          </ResponsiveContainer>
+
+          {insights && (
+            <div className="chart-center-stats">
+              <span className="center-label">Total</span>
+              <span className="center-value tabular">{currency(insights.total_value)}</span>
+              <span className={`center-change tabular ${insights.total_gain_loss >= 0 ? 'positive' : 'negative'}`}>
+                {insights.total_gain_loss >= 0 ? (
+                  <TrendingUp size={14} aria-hidden="true" />
+                ) : (
+                  <TrendingDown size={14} aria-hidden="true" />
+                )}
+                {percent(insights.total_gain_loss_pct, { signed: true })}
+              </span>
+            </div>
+          )}
+        </div>
+
+        <AllocationLegend data={chartData} />
+      </div>
+    );
+  } else {
+    body = <ChartState icon={PieChartIcon} message="Add assets to see your portfolio allocation" />;
+  }
 
   return (
     <article className="card allocation-card">
-      <div className="allocation-header">
-        <div className="card-head">
-          <PieChartIcon size={18} />
-          <span>Portfolio Allocation</span>
-        </div>
-
-        {/* View mode tabs */}
-        <div className="allocation-tabs">
-          <button 
-            className={`tab-btn ${viewMode === 'asset' ? 'active' : ''}`}
-            onClick={() => setViewMode('asset')}
-          >
-            <Layers size={14} />
-            By Asset
-          </button>
-          <button 
-            className={`tab-btn ${viewMode === 'type' ? 'active' : ''}`}
-            onClick={() => setViewMode('type')}
-          >
-            <PieChartIcon size={14} />
-            By Type
-          </button>
-        </div>
-      </div>
-
-      {loading ? (
-        <div className="chart-loading">
-          <div className="loading-spinner" />
-          <p>Calculating allocation...</p>
-        </div>
-      ) : hasData ? (
-        <div className="allocation-content">
-          {/* Donut Chart */}
-          <div className="chart-container">
-            <ResponsiveContainer width="100%" height={280}>
-              <PieChart>
-                <Pie
-                  data={chartData}
-                  dataKey="value"
-                  nameKey={viewMode === 'asset' ? 'name' : 'type'}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={70}
-                  outerRadius={120}
-                  paddingAngle={1}
-                  strokeWidth={0}
-                  label={renderCustomLabel}
-                  labelLine={false}
-                >
-                  {chartData.map((entry, index) => (
-                    <Cell 
-                      key={entry.name || entry.type} 
-                      fill={CHART_COLORS[index % CHART_COLORS.length]}
-                    />
-                  ))}
-                </Pie>
-                <Tooltip content={<CustomTooltip />} />
-              </PieChart>
-            </ResponsiveContainer>
-            
-            {/* Center stats */}
-            {insights && (
-              <div className="chart-center-stats">
-                <span className="center-label">Total</span>
-                <span className="center-value">{currency(insights.total_value)}</span>
-                <span className={`center-change ${insights.total_gain_loss >= 0 ? 'positive' : 'negative'}`}>
-                  {insights.total_gain_loss >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
-                  {insights.total_gain_loss >= 0 ? '+' : ''}{insights.total_gain_loss_pct.toFixed(2)}%
-                </span>
-              </div>
-            )}
-          </div>
-
-          {/* Legend / Allocation List */}
-          <AllocationLegend data={chartData} />
-        </div>
-      ) : (
-        <div className="chart-empty">
-          <PieChartIcon size={48} strokeWidth={1} />
-          <p>Add assets to see your portfolio allocation</p>
-        </div>
-      )}
+      <CardHeader
+        icon={PieChartIcon}
+        title="Portfolio Allocation"
+        actions={
+          <SegmentedControl
+            options={VIEW_OPTIONS}
+            value={viewMode}
+            onChange={setViewMode}
+            label="Allocation view"
+          />
+        }
+      />
+      {body}
     </article>
   );
 };

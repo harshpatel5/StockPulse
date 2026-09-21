@@ -1,41 +1,28 @@
-import React from 'react';
-import { ShieldCheck, Activity } from 'lucide-react';
-import { currency } from '../utils/formatters';
+import { ShieldCheck, Activity, Wallet } from 'lucide-react';
+import { currency, signedCurrency, percent } from '../utils/formatters';
+import { CardHeader } from './ui/CardHeader';
 
 // Three stat cards: Portfolio Value, Invested, Assets Tracked
 export const StatsCards = ({ portfolioTotals, allocationData, netChange, netChangePct }) => {
   return (
     <section className="stats-grid">
-      {/* Card 1: Portfolio Value */}
       <article className="card">
-        <div className="card-head">
-          <ShieldCheck size={18} />
-          <span>Portfolio value</span>
-        </div>
-        <h2>{currency(portfolioTotals.value)}</h2>
+        <CardHeader icon={ShieldCheck} title="Portfolio value" />
+        <p className="card-value tabular">{currency(portfolioTotals.value)}</p>
         <p className={netChange >= 0 ? 'positive' : 'negative'}>
-          {netChange >= 0 ? '+' : '-'}
-          {currency(Math.abs(netChange))} ({netChangePct.toFixed(2)}%)
+          {signedCurrency(netChange)} ({percent(netChangePct, { signed: true })})
         </p>
       </article>
 
-      {/* Card 2: Total Invested */}
       <article className="card">
-        <div className="card-head">
-          <Activity size={18} />
-          <span>Invested</span>
-        </div>
-        <h2>{currency(portfolioTotals.invested)}</h2>
+        <CardHeader icon={Activity} title="Invested" />
+        <p className="card-value tabular">{currency(portfolioTotals.invested)}</p>
         <p className="muted">Total cost basis</p>
       </article>
 
-      {/* Card 3: Number of Assets */}
       <article className="card">
-        <div className="card-head">
-          <ShieldCheck size={18} />
-          <span>Assets tracked</span>
-        </div>
-        <h2>{portfolioTotals.rows.length}</h2>
+        <CardHeader icon={Wallet} title="Assets tracked" />
+        <p className="card-value tabular">{portfolioTotals.rows.length}</p>
         <p className="muted">Across {allocationData.length || 0} categories</p>
       </article>
     </section>

@@ -1,5 +1,5 @@
-import React from 'react';
-import { Trophy, TrendingDown as TrendingDownIcon } from 'lucide-react';
+import { Trophy, TrendingDown, Minus } from 'lucide-react';
+import { percent } from '../../utils/formatters';
 
 /**
  * Performance Message - Shows encouragement/feedback based on performance
@@ -14,8 +14,8 @@ export const PerformanceMessage = ({ portfolioReturn, sp500Return }) => {
   if (isTied) {
     return (
       <div className="performance-message neutral">
-        <span className="perf-icon">📊</span>
-        <span>You're tracking right alongside the market. Steady as she goes!</span>
+        <Minus size={18} className="perf-icon" aria-hidden="true" />
+        <span>You're tracking right alongside the market. Steady as she goes.</span>
       </div>
     );
   }
@@ -23,10 +23,9 @@ export const PerformanceMessage = ({ portfolioReturn, sp500Return }) => {
   if (isBeating) {
     return (
       <div className="performance-message positive">
-        <Trophy size={18} className="perf-icon" />
+        <Trophy size={18} className="perf-icon" aria-hidden="true" />
         <span>
-          Congratulations! You're <strong>outperforming</strong> the S&P 500 by{' '}
-          {diff.toFixed(2)}%! Your stock picks are paying off! 🚀
+          You're <strong>outperforming</strong> the S&P 500 by {percent(diff)}.
         </span>
       </div>
     );
@@ -34,10 +33,10 @@ export const PerformanceMessage = ({ portfolioReturn, sp500Return }) => {
 
   return (
     <div className="performance-message negative">
-      <TrendingDownIcon size={18} className="perf-icon" />
+      <TrendingDown size={18} className="perf-icon" aria-hidden="true" />
       <span>
-        The market is ahead by {Math.abs(diff).toFixed(2)}%. Consider
-        diversifying or reviewing your strategy.
+        The market is ahead by {percent(Math.abs(diff))}. Consider diversifying or
+        reviewing your strategy.
       </span>
     </div>
   );

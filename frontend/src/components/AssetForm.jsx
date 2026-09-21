@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Plus, Search } from 'lucide-react';
 import { ASSET_TYPES } from '../constants';
 import { searchSymbols, searchCrypto } from '../services/priceService';
+import { CardHeader } from './ui/CardHeader';
 
 export const AssetForm = ({ formAsset, setFormAsset, onSubmit, busy, token }) => {
   const [searchResults, setSearchResults] = useState([]);
@@ -32,14 +33,14 @@ export const AssetForm = ({ formAsset, setFormAsset, onSubmit, busy, token }) =>
       // Search based on selected asset type
       const assetType = formAsset.type?.toLowerCase() || 'stock';
       let results = [];
-      
+
       if (assetType === 'crypto') {
         results = await searchCrypto(token, query);
       } else {
         // Stock and ETF both use Finnhub search (ETFs are listed like stocks)
         results = await searchSymbols(token, query);
       }
-      
+
       setSearchResults(results);
       setShowDropdown(results.length > 0);
     } catch {
@@ -113,10 +114,7 @@ export const AssetForm = ({ formAsset, setFormAsset, onSubmit, busy, token }) =>
 
   return (
     <article className="card">
-      <div className="card-head">
-        <Plus size={18} />
-        <span>Add asset</span>
-      </div>
+      <CardHeader icon={Plus} title="Add asset" />
       <form className="stack" onSubmit={onSubmit}>
         <label className="field">
           <span>Type</span>
@@ -133,15 +131,15 @@ export const AssetForm = ({ formAsset, setFormAsset, onSubmit, busy, token }) =>
             ))}
           </select>
           {(formAsset.type === 'Stock' || formAsset.type === 'ETF') && (
-            <small style={{ color: 'var(--color-text-muted)', fontSize: '0.75rem', marginTop: '4px' }}>
-              📍 Currently supports US exchanges only (NYSE, NASDAQ). More exchanges coming soon!
+            <small className="field-hint">
+              Currently supports US exchanges only (NYSE, NASDAQ). More exchanges coming soon.
             </small>
           )}
         </label>
 
-        <label className="field" style={{ position: 'relative' }}>
+        <label className="field field--search">
           <span>Ticker / name</span>
-          <div style={{ position: 'relative' }}>
+          <div className="field-input-wrap">
             <input
               ref={inputRef}
               type="text"
@@ -154,69 +152,36 @@ export const AssetForm = ({ formAsset, setFormAsset, onSubmit, busy, token }) =>
               }}
               placeholder={formAsset.type === 'Crypto' ? 'BTC' : 'AAPL'}
               required
-              style={{ paddingRight: '40px' }}
+              autoComplete="off"
+              role="combobox"
+              aria-expanded={showDropdown}
+              aria-controls="asset-suggestions"
             />
             {isSearching && (
-              <div
-                style={{
-                  position: 'absolute',
-                  right: '12px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  pointerEvents: 'none',
-                }}
-              >
-                <Search size={16} style={{ opacity: 0.5 }} />
-              </div>
+              <span className="field-adornment" aria-hidden="true">
+                <Search size={16} />
+              </span>
             )}
           </div>
           {showDropdown && searchResults.length > 0 && (
             <div
               ref={dropdownRef}
-              style={{
-                position: 'absolute',
-                top: '100%',
-                left: 0,
-                right: 0,
-                backgroundColor: '#0f172a',
-                border: '1px solid #243447',
-                borderRadius: '8px',
-                marginTop: '4px',
-                maxHeight: '200px',
-                overflowY: 'auto',
-                zIndex: 1000,
-                boxShadow: '0 4px 6px rgba(0, 0, 0, 0.3)',
-              }}
+              id="asset-suggestions"
+              className="suggest-list"
+              role="listbox"
+              aria-label="Matching symbols"
             >
               {searchResults.map((result, index) => (
                 <button
                   key={`${result.symbol}-${index}`}
                   type="button"
+                  className="suggest-item"
+                  role="option"
+                  aria-selected="false"
                   onClick={() => handleSelectSuggestion(result)}
-                  style={{
-                    width: '100%',
-                    padding: '12px 16px',
-                    textAlign: 'left',
-                    backgroundColor: 'transparent',
-                    border: 'none',
-                    color: '#cbd5e1',
-                    cursor: 'pointer',
-                    borderBottom: index < searchResults.length - 1 ? '1px solid #243447' : 'none',
-                    transition: 'background-color 0.2s',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.target.style.backgroundColor = '#1e293b';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.target.style.backgroundColor = 'transparent';
-                  }}
                 >
-                  <div style={{ fontWeight: 'bold', marginBottom: '2px' }}>
-                    {result.displaySymbol}
-                  </div>
-                  <div style={{ fontSize: '0.875rem', color: '#94a3b8' }}>
-                    {result.description}
-                  </div>
+                  <span className="suggest-symbol">{result.displaySymbol}</span>
+                  <span className="suggest-description">{result.description}</span>
                 </button>
               ))}
             </div>
@@ -253,7 +218,8 @@ export const AssetForm = ({ formAsset, setFormAsset, onSubmit, busy, token }) =>
           </label>
         </div>
 
-        <button className="btn primary" type="submit" disabled={busy}>
+        <button className="btn primary" type="submit" disabled={busy} aria-busy={busy}>
+          {busy && <span className="btn-spinner" aria-hidden="true" />}
           {busy ? 'Saving…' : 'Save asset'}
         </button>
       </form>
