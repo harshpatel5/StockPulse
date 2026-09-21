@@ -66,15 +66,15 @@ const BenchmarkTooltip = ({ active, payload, label }) => {
 /**
  * BenchmarkChart - Portfolio vs S&P 500 Comparison
  */
-export const BenchmarkChart = ({ token }) => {
+export const BenchmarkChart = ({ token, dataVersion = 0 }) => {
   const [data, setData] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [hasSP500, setHasSP500] = useState(false);
   const [timeframe, setTimeframe] = useState('all');
   const [showInfo, setShowInfo] = useState(false);
-  const hasFetchedRef = useRef(false);
-  const lastTokenRef = useRef(null);
+  const [retryTick, setRetryTick] = useState(0);
+  const lastParamsRef = useRef(null);
   const animation = useChartAnimation();
 
   // Fetch comparison data
@@ -82,10 +82,10 @@ export const BenchmarkChart = ({ token }) => {
     const fetchData = async () => {
       if (!token) return;
 
-      // Prevent duplicate calls for the same token
-      if (hasFetchedRef.current && lastTokenRef.current === token) return;
-      hasFetchedRef.current = true;
-      lastTokenRef.current = token;
+      // Refetch when the token changes, the portfolio changes, or on retry
+      const paramKey = `${token}:${dataVersion}:${retryTick}`;
+      if (lastParamsRef.current === paramKey) return;
+      lastParamsRef.current = paramKey;
 
       setLoading(true);
       setError(null);
@@ -105,7 +105,7 @@ export const BenchmarkChart = ({ token }) => {
     };
 
     fetchData();
-  }, [token]);
+  }, [token, dataVersion, retryTick]);
 
   // Filter data based on timeframe
   const filteredData = useMemo(() => {
@@ -138,16 +138,18 @@ export const BenchmarkChart = ({ token }) => {
   const difference = showBenchmark ? latestData.portfolio - latestData.sp500 : null;
 
   const retry = () => {
-    hasFetchedRef.current = false;
-    lastTokenRef.current = null;
     setError(null);
-    setTimeframe((current) => current);
+    setRetryTick((tick) => tick + 1);
   };
 
+  // Keep the chart on screen while it refreshes; only a first load shows a skeleton
+  const showSkeleton = loading && data.length === 0;
+  const isRefreshing = loading && data.length > 0;
+
   let body;
-  if (loading) {
+  if (showSkeleton) {
     body = <ChartState status="loading" height={300} message="Loading comparison data" />;
-  } else if (error) {
+  } else if (error && data.length === 0) {
     body = <ChartState status="error" height={300} message={error} onRetry={retry} />;
   } else if (filteredData.length > 1) {
     body = (
@@ -212,13 +214,16 @@ export const BenchmarkChart = ({ token }) => {
         icon={BarChart3}
         title="Portfolio vs S&P 500"
         actions={
-          <SegmentedControl
-            compact
-            options={TIMEFRAME_OPTIONS}
-            value={timeframe}
-            onChange={setTimeframe}
-            label="Comparison timeframe"
-          />
+          <>
+            {isRefreshing && <span className="btn-spinner" aria-hidden="true" />}
+            <SegmentedControl
+              compact
+              options={TIMEFRAME_OPTIONS}
+              value={timeframe}
+              onChange={setTimeframe}
+              label="Comparison timeframe"
+            />
+          </>
         }
       >
         <InfoButton label="How benchmark comparison works" onClick={() => setShowInfo(true)} />
@@ -256,7 +261,9 @@ export const BenchmarkChart = ({ token }) => {
         <PerformanceMessage portfolioReturn={latestData.portfolio} sp500Return={latestData.sp500} />
       )}
 
-      {body}
+      <div className={isRefreshing ? 'is-refreshing' : undefined} aria-busy={isRefreshing || undefined}>
+        {body}
+      </div>
 
       {!hasSP500 && filteredData.length > 1 && (
         <p className="benchmark-note">

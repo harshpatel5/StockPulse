@@ -109,14 +109,20 @@ const SectorBar = ({ name, percentage, isTop, index }) => (
   </div>
 );
 
-export const DiversificationScore = ({ token, livePrices }) => {
+export const DiversificationScore = ({ token, livePrices, dataVersion = 0 }) => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const hasFetchedRef = useRef(false);
+  const [retryTick, setRetryTick] = useState(0);
+  const lastParamsRef = useRef(null);
 
   useEffect(() => {
-    if (!token || hasFetchedRef.current) return;
+    if (!token) return;
+
+    // Refetch when the portfolio changes rather than only once per mount
+    const paramKey = `${token}:${dataVersion}:${retryTick}`;
+    if (lastParamsRef.current === paramKey) return;
+    lastParamsRef.current = paramKey;
 
     const loadScore = async () => {
       try {
@@ -132,7 +138,6 @@ export const DiversificationScore = ({ token, livePrices }) => {
         } else {
           setData(result);
         }
-        hasFetchedRef.current = true;
       } catch (err) {
         setError(err.message || 'Failed to load diversification data');
       } finally {
@@ -141,7 +146,7 @@ export const DiversificationScore = ({ token, livePrices }) => {
     };
 
     loadScore();
-  }, [token, livePrices]);
+  }, [token, livePrices, dataVersion, retryTick]);
 
   // Sort sectors by weight so the biggest ones show up first
   const sortedSectors = useMemo(() => {
@@ -153,14 +158,16 @@ export const DiversificationScore = ({ token, livePrices }) => {
   const topSector = sortedSectors.length > 0 ? sortedSectors[0][0] : null;
 
   const retry = () => {
-    hasFetchedRef.current = false;
     setError(null);
-    setLoading(true);
+    setRetryTick((tick) => tick + 1);
   };
+
+  // Keep the previous score visible while a new one loads
+  const isRefreshing = loading && Boolean(data);
 
   // The header always renders, so loading and error never shift the layout
   let body = null;
-  if (loading) {
+  if (loading && !data) {
     body = <ChartState status="loading" height={240} message="Analyzing portfolio diversification" />;
   } else if (error) {
     body = <ChartState status="error" height={240} message={error} onRetry={retry} />;
@@ -170,12 +177,16 @@ export const DiversificationScore = ({ token, livePrices }) => {
 
   return (
     <article className="card ds-card">
-      <CardHeader icon={Globe} title="Diversification Score" />
+      <CardHeader
+        icon={Globe}
+        title="Diversification Score"
+        actions={isRefreshing ? <span className="btn-spinner" aria-hidden="true" /> : null}
+      />
 
       {body}
 
       {!body && (
-        <>
+        <div className={isRefreshing ? 'is-refreshing' : undefined} aria-busy={isRefreshing || undefined}>
           <div className="ds-top-row">
             <ScoreGauge score={data.score} />
 
@@ -249,7 +260,7 @@ export const DiversificationScore = ({ token, livePrices }) => {
               })}
             </div>
           )}
-        </>
+        </div>
       )}
     </article>
   );

@@ -587,3 +587,28 @@
   font-size: 0.8rem;
   color: var(--text-secondary);
 }
+
+/* ========== Loading states ========== */
+
+.skeleton-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* A card that is refreshing stays readable while its new data arrives */
+.is-refreshing {
+  opacity: 0.6;
+  transition: opacity var(--transition);
+}
+
+.notice.warning {
+  background: var(--warning-tint);
+  border-color: var(--warning-border);
+  color: var(--warning);
+}
+
+/* popLayout takes an exiting row out of flow, so the list needs a positioning context */
+.asset-list {
+  position: relative;
+}

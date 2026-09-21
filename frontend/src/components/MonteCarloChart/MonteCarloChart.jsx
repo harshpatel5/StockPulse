@@ -49,13 +49,13 @@ const SimulationTooltip = ({ active, payload }) => {
   );
 };
 
-export const MonteCarloChart = ({ token, livePrices }) => {
+export const MonteCarloChart = ({ token, livePrices, dataVersion = 0 }) => {
   const [simData, setSimData] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [timeframe, setTimeframe] = useState(90);
   const [showInfo, setShowInfo] = useState(false);
-  const hasFetchedRef = useRef(false);
+  const [retryTick, setRetryTick] = useState(0);
   const lastParamsRef = useRef(null);
   const animation = useChartAnimation();
 
@@ -63,10 +63,9 @@ export const MonteCarloChart = ({ token, livePrices }) => {
     const fetchData = async () => {
       if (!token) return;
 
-      // Prevent duplicate calls for same params
-      const paramKey = `${token}:${timeframe}`;
-      if (hasFetchedRef.current && lastParamsRef.current === paramKey) return;
-      hasFetchedRef.current = true;
+      // Refetch on token, timeframe, portfolio change, or retry
+      const paramKey = `${token}:${timeframe}:${dataVersion}:${retryTick}`;
+      if (lastParamsRef.current === paramKey) return;
       lastParamsRef.current = paramKey;
 
       setLoading(true);
@@ -92,12 +91,10 @@ export const MonteCarloChart = ({ token, livePrices }) => {
     };
 
     fetchData();
-  }, [token, timeframe, livePrices]);
+  }, [token, timeframe, dataVersion, retryTick, livePrices]);
 
   const handleTimeframeChange = (newTimeframe) => {
     if (newTimeframe === timeframe) return;
-    hasFetchedRef.current = false;
-    lastParamsRef.current = null;
     setTimeframe(newTimeframe);
   };
 
@@ -131,16 +128,18 @@ export const MonteCarloChart = ({ token, livePrices }) => {
   }, [chartData]);
 
   const retry = () => {
-    hasFetchedRef.current = false;
-    lastParamsRef.current = null;
     setError(null);
-    setTimeframe(timeframe);
+    setRetryTick((tick) => tick + 1);
   };
 
+  // The previous simulation stays visible (dimmed) while a new one runs
+  const showSkeleton = loading && !simData;
+  const isRefreshing = loading && Boolean(simData);
+
   let body;
-  if (loading) {
+  if (showSkeleton) {
     body = <ChartState status="loading" height={300} message="Running 10,000 simulations" />;
-  } else if (error) {
+  } else if (error && !simData) {
     body = <ChartState status="error" height={300} message={error} onRetry={retry} />;
   } else if (chartData.length > 0) {
     body = (
@@ -216,21 +215,25 @@ export const MonteCarloChart = ({ token, livePrices }) => {
         icon={Shuffle}
         title="Monte Carlo Risk Simulation"
         actions={
-          <SegmentedControl
-            compact
-            options={TIMEFRAME_OPTIONS}
-            value={timeframe}
-            onChange={handleTimeframeChange}
-            label="Simulation horizon"
-          />
+          <>
+            {isRefreshing && <span className="btn-spinner" aria-hidden="true" />}
+            <SegmentedControl
+              compact
+              options={TIMEFRAME_OPTIONS}
+              value={timeframe}
+              onChange={handleTimeframeChange}
+              label="Simulation horizon"
+            />
+          </>
         }
       >
         <InfoButton label="How Monte Carlo simulation works" onClick={() => setShowInfo(true)} />
       </CardHeader>
 
-      {simData?.stats && <RiskStats stats={simData.stats} />}
-
-      {body}
+      <div className={isRefreshing ? 'is-refreshing' : undefined} aria-busy={isRefreshing || undefined}>
+        {simData?.stats && <RiskStats stats={simData.stats} />}
+        {body}
+      </div>
 
       {simData?.assets_excluded?.length > 0 && (
         <p className="mc-excluded">

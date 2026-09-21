@@ -18,7 +18,9 @@ export const useAssets = (token) => {
   const [fetchingAssets, setFetchingAssets] = useState(false);
   const [priceWarning, setPriceWarning] = useState(null);
   const [pricesLoaded, setPricesLoaded] = useState(false);
-  const componentIdRef = useRef(Math.random().toString(36));
+  // Bumped after every successful load so dependent charts know to refetch
+  const [dataVersion, setDataVersion] = useState(0);
+  const hasLoadedRef = useRef(false);
 
   // Load assets, history, and prices using Promise.all for parallel fetching
   const loadAssets = useCallback(async () => {
@@ -36,7 +38,11 @@ export const useAssets = (token) => {
     loadingTokens.add(loadKey);
     lastLoadTime.set(loadKey, now);
     setFetchingAssets(true);
-    setPricesLoaded(false);
+    // Only the very first load blanks the dashboard; later refreshes keep it
+    // on screen so charts do not lose their state.
+    if (!hasLoadedRef.current) {
+      setPricesLoaded(false);
+    }
     
     try {
       // Step 1: Get assets first (needed for price fetching)
@@ -65,6 +71,8 @@ export const useAssets = (token) => {
       setLivePrices(prices);
       setPriceWarning(warning);
       setPricesLoaded(true);
+      hasLoadedRef.current = true;
+      setDataVersion((version) => version + 1);
 
       // Step 4: Calculate current portfolio value with live prices
       const currentTotalValue = assetsData.reduce((total, asset) => {
@@ -105,6 +113,7 @@ export const useAssets = (token) => {
       setFormAsset(DEFAULT_ASSET);
       setPriceWarning(null);
       setPricesLoaded(false);
+      hasLoadedRef.current = false;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]); // Only depend on token, not loadAssets to avoid circular dependency
@@ -191,6 +200,7 @@ export const useAssets = (token) => {
     fetchingAssets,
     priceWarning,
     pricesLoaded, // Export this so components can show loading state
+    dataVersion,
     loadAssets,
     addAsset,
     removeAsset,

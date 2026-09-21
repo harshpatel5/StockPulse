@@ -3,7 +3,7 @@ import { X } from 'lucide-react';
 import { enter, exit } from '../../lib/motion';
 
 // Errors interrupt the screen reader; everything else is announced politely.
-const ROLE_FOR_TONE = { error: 'alert', success: 'status', info: 'status' };
+const ROLE_FOR_TONE = { error: 'alert', success: 'status', info: 'status', warning: 'status' };
 
 export const Notice = ({ tone = 'info', onDismiss, children }) => (
   <AnimatePresence initial={false}>

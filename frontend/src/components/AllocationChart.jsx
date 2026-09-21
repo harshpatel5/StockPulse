@@ -102,30 +102,37 @@ const AllocationLegend = ({ data }) => (
   </div>
 );
 
-export const AllocationChart = ({ allocationData, token, livePrices }) => {
+export const AllocationChart = ({ allocationData, token, livePrices, dataVersion = 0 }) => {
   const [viewMode, setViewMode] = useState('asset');
   const [insights, setInsights] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const prevPricesRef = useRef(null);
+  const [retryTick, setRetryTick] = useState(0);
+  const prevParamsRef = useRef(null);
   const fetchTimeoutRef = useRef(null);
   const animation = useChartAnimation();
 
   // Fetch insights from backend when prices change
   useEffect(() => {
     const fetchInsights = async () => {
-      if (!token || !livePrices || Object.keys(livePrices).length === 0) return;
+      if (!token || !livePrices || Object.keys(livePrices).length === 0) {
+        setLoading(false);
+        return;
+      }
 
-      // Check if prices actually changed
-      const pricesStr = JSON.stringify(livePrices);
-      if (prevPricesRef.current === pricesStr) return;
-      prevPricesRef.current = pricesStr;
+      // Refetch when the prices or the portfolio data version change
+      const paramKey = `${dataVersion}:${retryTick}:${JSON.stringify(livePrices)}`;
+      if (prevParamsRef.current === paramKey) {
+        setLoading(false);
+        return;
+      }
+      prevParamsRef.current = paramKey;
 
       setLoading(true);
       setError(null);
       try {
         // Use deduplication with a key based on token and prices hash
-        const pricesHash = pricesStr.substring(0, 50);
+        const pricesHash = paramKey.substring(0, 50);
         const data = await dedupeRequest(
           `fetchInsights:${token}:${pricesHash}`,
           () => fetchPortfolioInsights(token, livePrices),
@@ -153,18 +160,20 @@ export const AllocationChart = ({ allocationData, token, livePrices }) => {
         clearTimeout(fetchTimeoutRef.current);
       }
     };
-  }, [token, livePrices]);
+  }, [token, livePrices, dataVersion, retryTick]);
 
   const rawData = viewMode === 'asset' ? insights?.by_asset || [] : insights?.by_type || allocationData || [];
   const chartData = foldToOther(rawData);
   const hasData = chartData.length > 0;
+  const showSkeleton = loading && !hasData;
+  const isRefreshing = loading && hasData;
   const retry = () => {
-    prevPricesRef.current = null;
     setError(null);
+    setRetryTick((tick) => tick + 1);
   };
 
   let body;
-  if (loading && !hasData) {
+  if (showSkeleton) {
     body = <ChartState status="loading" message="Calculating allocation" />;
   } else if (error && !hasData) {
     body = <ChartState status="error" message={error} onRetry={retry} />;
@@ -225,15 +234,20 @@ export const AllocationChart = ({ allocationData, token, livePrices }) => {
         icon={PieChartIcon}
         title="Portfolio Allocation"
         actions={
-          <SegmentedControl
-            options={VIEW_OPTIONS}
-            value={viewMode}
-            onChange={setViewMode}
-            label="Allocation view"
-          />
+          <>
+            {isRefreshing && <span className="btn-spinner" aria-hidden="true" />}
+            <SegmentedControl
+              options={VIEW_OPTIONS}
+              value={viewMode}
+              onChange={setViewMode}
+              label="Allocation view"
+            />
+          </>
         }
       />
-      {body}
+      <div className={isRefreshing ? 'is-refreshing' : undefined} aria-busy={isRefreshing || undefined}>
+        {body}
+      </div>
     </article>
   );
 };

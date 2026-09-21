@@ -16,6 +16,8 @@ import { DiversificationScore } from './components/DiversificationScore';
 import { AssetForm } from './components/AssetForm';
 import { AssetList } from './components/AssetList';
 import { LoadingSpinner } from './components/LoadingSpinner';
+import { DashboardSkeleton } from './components/DashboardSkeleton';
+import { Notice } from './components/ui/Notice';
 import Landing from './pages/Landing';
 import { PageFade } from './components/motion/PageFade';
 import { useDocumentTheme } from './hooks/useDocumentTheme';
@@ -43,6 +45,7 @@ const Dashboard = () => {
     fetchingAssets,
     priceWarning,
     pricesLoaded,
+    dataVersion,
     loadAssets,
     addAsset,
     removeAsset,
@@ -82,6 +85,14 @@ const Dashboard = () => {
     }
   };
 
+  // Success messages clear themselves; errors stay until dismissed
+  useEffect(() => {
+    if (message?.type !== 'success') return undefined;
+
+    const timer = setTimeout(() => setMessage(null), 4000);
+    return () => clearTimeout(timer);
+  }, [message]);
+
   const handleRefresh = async () => {
     setMessage(null);
     try {
@@ -101,15 +112,13 @@ const Dashboard = () => {
     return <Navigate to="/login" replace />;
   }
 
-  // Show loading while fetching assets and prices
-  // This prevents showing cost basis values before live prices load
-  if (fetchingAssets || !pricesLoaded) {
+  // Only the first load blanks the dashboard: refreshes keep it mounted so
+  // charts, tabs and scroll position survive adding or deleting an asset.
+  if (!pricesLoaded) {
     return (
       <div className="dashboard-dark">
         <Navbar />
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 'calc(100vh - 60px)' }}>
-          <div>Loading portfolio data...</div>
-        </div>
+        <DashboardSkeleton />
       </div>
     );
   }
@@ -129,13 +138,14 @@ const Dashboard = () => {
           fetchingAssets={fetchingAssets}
         />
 
-        {priceWarning && <div className="notice error">{priceWarning}</div>}
+        <Notice tone="warning">{priceWarning}</Notice>
 
-      {message && (
-        <div className={`notice ${message.type === 'error' ? 'error' : 'success'}`}>
-          {message.text}
-        </div>
-      )}
+        <Notice
+          tone={message?.type === 'error' ? 'error' : 'success'}
+          onDismiss={() => setMessage(null)}
+        >
+          {message?.text}
+        </Notice>
 
       <StatsCards
         portfolioTotals={portfolioTotals}
@@ -145,27 +155,28 @@ const Dashboard = () => {
       />
 
       <section className="charts-grid">
-        <AllocationChart 
-          allocationData={allocationData} 
+        <AllocationChart
+          allocationData={allocationData}
           token={token}
           livePrices={livePrices}
+          dataVersion={dataVersion}
         />
         <HistoryChart lineSeries={lineSeries} />
       </section>
 
       {/* Portfolio vs S&P 500 Comparison */}
       <section className="benchmark-section">
-        <BenchmarkChart token={token} />
+        <BenchmarkChart token={token} dataVersion={dataVersion} />
       </section>
 
       {/* Monte Carlo Risk Simulation */}
       <section className="benchmark-section">
-        <MonteCarloChart token={token} livePrices={livePrices} />
+        <MonteCarloChart token={token} livePrices={livePrices} dataVersion={dataVersion} />
       </section>
 
       {/* Portfolio Diversification Analysis */}
       <section className="benchmark-section">
-        <DiversificationScore token={token} livePrices={livePrices} />
+        <DiversificationScore token={token} livePrices={livePrices} dataVersion={dataVersion} />
       </section>
 
       <section className="content-grid">
