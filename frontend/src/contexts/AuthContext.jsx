@@ -7,7 +7,7 @@ const AuthContext = createContext(null);
 export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(null);
   const [user, setUser] = useState(null);
-  const [isValidating, setIsValidating] = useState(false);
+  const [isValidating, setIsValidating] = useState(() => Boolean(localStorage.getItem('token')));
   const [authMode, setAuthMode] = useState('login');
   const [credentials, setCredentials] = useState({ email: '', password: '' });
   const hasValidatedRef = useRef(false);
