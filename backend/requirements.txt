@@ -1,6 +1,8 @@
 Flask==3.0.0
 Flask-CORS==4.0.0
 Flask-SQLAlchemy==3.1.1
+# Pinned: SQLAlchemy 2.1 switched the default postgresql:// driver to psycopg3
+SQLAlchemy==2.0.43
 Flask-Limiter==3.5.0
 APScheduler==3.10.4
 psycopg2-binary==2.9.9
