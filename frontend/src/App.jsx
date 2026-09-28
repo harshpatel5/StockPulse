@@ -45,6 +45,7 @@ const Dashboard = () => {
     fetchingAssets,
     priceWarning,
     pricesLoaded,
+    loadError,
     dataVersion,
     loadAssets,
     addAsset,
@@ -115,6 +116,20 @@ const Dashboard = () => {
   // Only the first load blanks the dashboard: refreshes keep it mounted so
   // charts, tabs and scroll position survive adding or deleting an asset.
   if (!pricesLoaded) {
+    if (loadError) {
+      return (
+        <div className="dashboard-dark">
+          <Navbar />
+          <div className="app-shell">
+            <Notice tone="error">{loadError}</Notice>
+            <button className="btn primary" type="button" onClick={() => loadAssets().catch(() => {})}>
+              Retry
+            </button>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="dashboard-dark">
         <Navbar />

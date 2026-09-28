@@ -18,6 +18,7 @@ export const useAssets = (token) => {
   const [fetchingAssets, setFetchingAssets] = useState(false);
   const [priceWarning, setPriceWarning] = useState(null);
   const [pricesLoaded, setPricesLoaded] = useState(false);
+  const [loadError, setLoadError] = useState(null);
   // Bumped after every successful load so dependent charts know to refetch
   const [dataVersion, setDataVersion] = useState(0);
   const hasLoadedRef = useRef(false);
@@ -38,12 +39,13 @@ export const useAssets = (token) => {
     loadingTokens.add(loadKey);
     lastLoadTime.set(loadKey, now);
     setFetchingAssets(true);
+    setLoadError(null);
     // Only the very first load blanks the dashboard; later refreshes keep it
     // on screen so charts do not lose their state.
     if (!hasLoadedRef.current) {
       setPricesLoaded(false);
     }
-    
+
     try {
       // Step 1: Get assets first (needed for price fetching)
       const assetsData = await dedupeRequest(`fetchAssets:${token}`, () => fetchAssets(token));
@@ -94,6 +96,7 @@ export const useAssets = (token) => {
 
     } catch (error) {
       console.error('Failed to load assets:', error);
+      setLoadError(error?.message || 'Failed to load your portfolio.');
       throw error;
     } finally {
       setFetchingAssets(false);
@@ -104,7 +107,10 @@ export const useAssets = (token) => {
   // Initialize data on mount or token change
   useEffect(() => {
     if (token) {
-      loadAssets();
+      // loadAssets already records the failure in loadError; swallow the
+      // rejection here so it doesn't surface as an unhandled promise
+      // rejection and leave the dashboard stuck on the skeleton forever.
+      loadAssets().catch(() => {});
     } else {
       // Clear state on logout
       setAssets([]);
@@ -113,6 +119,7 @@ export const useAssets = (token) => {
       setFormAsset(DEFAULT_ASSET);
       setPriceWarning(null);
       setPricesLoaded(false);
+      setLoadError(null);
       hasLoadedRef.current = false;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -200,6 +207,7 @@ export const useAssets = (token) => {
     fetchingAssets,
     priceWarning,
     pricesLoaded, // Export this so components can show loading state
+    loadError,
     dataVersion,
     loadAssets,
     addAsset,

@@ -124,6 +124,11 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem('user', JSON.stringify(data.user));
     setCredentials({ email: '', password: '' });
     setIsValidating(false);
+    // The server just handed us a fresh, trusted token/user - no need for a
+    // later triggerValidation() call (e.g. from Dashboard's mount effect) to
+    // immediately re-validate it with a redundant getMe() round trip.
+    hasValidatedRef.current = true;
+    validationRequestedRef.current = true;
     return data;
   };
 
@@ -142,6 +147,10 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem('token', data.token);
     localStorage.setItem('user', JSON.stringify(data.user));
     setIsValidating(false);
+    // Same reasoning as handleLogin: this token was just issued, skip the
+    // redundant re-validation round trip on the next triggerValidation() call.
+    hasValidatedRef.current = true;
+    validationRequestedRef.current = true;
     return data;
   };
 
