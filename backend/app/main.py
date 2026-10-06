@@ -126,8 +126,10 @@ def create_app(config_class=Config):
         print("✓ On-demand chart generation enabled!")
     
     # Initialize background scheduler for daily snapshots
-    # Only start scheduler in main process (not in reloader)
-    if not app.debug or os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
+    # Only start scheduler in main process (not in reloader), never under test
+    if not app.config.get('TESTING') and (
+        not app.debug or os.environ.get('WERKZEUG_RUN_MAIN') == 'true'
+    ):
         init_scheduler(app)
     
     # Helper function to check if API key is configured
@@ -395,8 +397,11 @@ def create_app(config_class=Config):
             if current_user.is_demo:
                 return jsonify({"message": "Demo account is read-only"}), 403
             try:
-                # Accept optional current_value for accurate outflow tracking
-                data = request.get_json() or {}
+                # Accept optional current_value for accurate outflow tracking.
+                # silent=True so a body-less DELETE falls back to cost_basis
+                # instead of raising (get_json() raises on a missing/empty
+                # body, and this branch only catches SQLAlchemyError).
+                data = request.get_json(silent=True) or {}
                 outflow_amount = float(data.get('current_value', asset.cost_basis))
 
                 # Record capital outflow before deleting
